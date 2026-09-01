@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TIMESHOP
 
-## Getting Started
+E-commerce premium para México con enfoque en lifestyle, diseño y alto ticket.
 
-First, run the development server:
+## Stack
+
+- Next.js 16
+- TypeScript
+- Tailwind CSS
+- Vercel ready
+- PayPal ready
+- Supabase ready
+- Resend ready
+
+## Scripts
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Variables de entorno
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Crea un archivo `.env.local` con las siguientes variables:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_SITE_URL=https://tu-dominio.com
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
+SUPABASE_SERVICE_ROLE_KEY=tu-service-role
+PAYPAL_CLIENT_ID=tu-client-id
+PAYPAL_CLIENT_SECRET=tu-client-secret
+PAYPAL_ENVIRONMENT=sandbox
+PAYPAL_WEBHOOK_ID=tu-webhook-id
+RESEND_API_KEY=tu-api-key
+EMAIL_FROM=hola@tu-dominio.com
+```
 
-## Learn More
+## Estado actual
 
-To learn more about Next.js, take a look at the following resources:
+El proyecto ya incluye:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- layout principal y branding premium
+- páginas públicas del storefront
+- catálogo y detalle de producto
+- carrito, checkout y cuentas
+- estructura modular para Supabase, PayPal y env validation
+- contenido en español mexicano
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Este sitio está listo para continuar desarrollando la integración real con PayPal, Supabase, Resend y el panel administrativo protegible.
