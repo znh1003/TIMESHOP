@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { formatPrice, getAdminState } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export default function AdminOrdersPage() {
   const [state, setState] = useState(getAdminState());
 
   useEffect(() => {
-    setState(getAdminState());
+    startTransition(() => setState(getAdminState()));
   }, []);
 
   return (

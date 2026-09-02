@@ -7,7 +7,7 @@ export default function NotFound() {
         <h1>Página no encontrada</h1>
         <p>La sección que buscas no está disponible en este momento.</p>
       </div>
-      <Link href="/" className="primary-button">
+      <Link href="/" className="primary-button" style={{ width: "100%", maxWidth: 420, marginTop: 18 }}>
         Volver al inicio
       </Link>
     </div>

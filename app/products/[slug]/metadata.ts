@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { getProductBySlug, products } from "@/data/products";
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const product = getProductBySlug(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const product = getProductBySlug(slug);
   if (!product) {
     return {
       title: "Producto no encontrado | TIMESHOP",

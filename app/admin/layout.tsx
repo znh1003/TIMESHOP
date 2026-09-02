@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -13,8 +13,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     const session = window.localStorage.getItem("timeshop_admin_session");
     const allowed = session === "active";
-    setIsAuthenticated(allowed);
-    setReady(true);
+    startTransition(() => {
+      setIsAuthenticated(allowed);
+      setReady(true);
+    });
 
     if (!allowed && pathname !== "/admin/login") {
       router.replace("/admin/login");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { formatPrice, getAdminState, saveAdminState } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export default function AdminProductsPage() {
   const [state, setState] = useState(getAdminState());
 
   useEffect(() => {
-    setState(getAdminState());
+    startTransition(() => setState(getAdminState()));
   }, []);
 
   const toggleFeatured = (id: string) => {

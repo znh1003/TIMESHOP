@@ -5,45 +5,55 @@ export function Footer() {
     <footer className="footer">
       <div className="container-shell footer-grid">
         <div>
-          <div className="brand" style={{ marginBottom: 12 }}>
+          <div className="brand footer-brand">
             <span className="brand-mark">T</span>
             <span>TIMESHOP</span>
           </div>
           <p className="muted" style={{ maxWidth: 280 }}>
-            Objetos singulares para vivir mejor, con intención y estilo.
+            Discover better products for a better everyday life.
           </p>
         </div>
 
         <div>
-          <h3 className="footer-title">Compra segura</h3>
+          <h3 className="footer-title">Shop</h3>
           <div className="footer-links">
-            <Link href="/about">Nuestra filosofía</Link>
-            <Link href="/shipping">Envíos</Link>
-            <Link href="/returns-policy">Devoluciones</Link>
-            <Link href="/privacy">Política de privacidad</Link>
+            <Link href="/shop">Shop All</Link>
+            <Link href="/shop">New Arrivals</Link>
+            <Link href="/shop">Best Sellers</Link>
+            <Link href="/shop">Collections</Link>
           </div>
         </div>
 
         <div>
-          <h3 className="footer-title">Ayuda</h3>
+          <h3 className="footer-title">Customer care</h3>
           <div className="footer-links">
-            <Link href="/contact">Contacto</Link>
-            <Link href="/returns">Solicitar devolución</Link>
-            <Link href="/terms">Términos y condiciones</Link>
-            <Link href="/cookies">Política de cookies</Link>
+            <Link href="/contact">Contact</Link>
+            <Link href="/shipping">Shipping</Link>
+            <Link href="/returns-policy">Returns</Link>
+            <Link href="/returns-policy">FAQ</Link>
           </div>
         </div>
 
         <div>
-          <h3 className="footer-title">Protección</h3>
+          <h3 className="footer-title">About</h3>
           <div className="footer-links">
-            <span>Protección de compra</span>
-            <span>Pago seguro con PayPal</span>
-            <span>Atención personalizada</span>
-            <span>Soporte por WhatsApp</span>
+            <Link href="/about">Our Story</Link>
+            <Link href="/about">About TIMESHOP</Link>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="footer-title">Legal</h3>
+          <div className="footer-links">
+            <Link href="/privacy">Privacy Policy</Link>
+            <Link href="/terms">Terms & Conditions</Link>
+            <Link href="/returns-policy">Refund Policy</Link>
+            <Link href="/cookies">Cookie Policy</Link>
           </div>
         </div>
       </div>
+      <div className="container-shell footer-bottom"><span>© 2026 TIMESHOP. All rights reserved.</span><span>Instagram · Facebook · TikTok</span></div>
+      <div className="container-shell footer-newsletter"><strong>Join the TIMESHOP community.</strong><form><input type="email" aria-label="Email" placeholder="Email" required /><button type="submit">Subscribe</button></form></div>
     </footer>
   );
 }

@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  startTransition,
   type ReactNode,
 } from "react";
 
@@ -42,7 +43,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     try {
       const parsed = JSON.parse(raw) as CartItem[];
-      if (Array.isArray(parsed)) setItems(parsed);
+      if (Array.isArray(parsed)) startTransition(() => setItems(parsed));
     } catch {
       window.localStorage.removeItem(CART_STORAGE_KEY);
     }
@@ -63,6 +64,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       return [...current, { ...product, quantity: 1 }];
     });
+    window.dispatchEvent(new CustomEvent("timeshop:add-to-cart", { detail: product }));
   };
 
   const updateQuantity = (id: number, delta: number) => {

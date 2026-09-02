@@ -26,9 +26,13 @@ export async function POST(request: Request) {
     const status = result.status ?? "COMPLETED";
 
     const supabase = getSupabaseServerClient();
+    if (!supabase) {
+      return NextResponse.json({ error: "No se pudo conectar con la base de datos para guardar el pedido." }, { status: 503 });
+    }
+
     if (supabase) {
       const orderNumber = body.orderNumber ?? `TS-${Date.now()}`;
-      const total = Number(body.total ?? result.purchase_units?.[0]?.amount?.value ?? 0);
+      const total = Number(result.purchase_units?.[0]?.amount?.value ?? body.total ?? 0);
 
       const { data: orderData, error: orderError } = await supabase
         .from(tableNames.orders)
@@ -51,19 +55,26 @@ export async function POST(request: Request) {
         .single();
 
       if (!orderError && orderData && Array.isArray(body.items) && body.items.length > 0) {
-        await supabase.from(tableNames.orderItems).insert(
+        const { error: orderItemsError } = await supabase.from(tableNames.orderItems).insert(
           body.items.map((item) => ({
             order_id: orderData.id,
-            product_id: item.productId ?? null,
+            product_id: item.productId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.productId) ? item.productId : null,
             product_name: item.productName ?? "Producto",
             price: Number(item.price ?? 0),
             quantity: Number(item.quantity ?? 1),
           })),
         );
+        if (orderItemsError) {
+          return NextResponse.json({ error: `No se pudieron guardar los productos del pedido: ${orderItemsError.message}` }, { status: 500 });
+        }
+      }
+
+      if (orderError || !orderData) {
+        return NextResponse.json({ error: orderError?.message ?? "No se pudo guardar el pedido." }, { status: 500 });
       }
 
       if (!orderError) {
-        await supabase.from(tableNames.payments).insert([
+        const { error: paymentError } = await supabase.from(tableNames.payments).insert([
           {
             order_id: orderData.id,
             payment_method: "PayPal",
@@ -73,6 +84,9 @@ export async function POST(request: Request) {
             amount: total,
           },
         ]);
+        if (paymentError) {
+          return NextResponse.json({ error: `Pedido guardado, pero no se pudo registrar el pago: ${paymentError.message}` }, { status: 500 });
+        }
       }
     }
 

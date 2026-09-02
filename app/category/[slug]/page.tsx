@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { use } from "react";
 import { categories, formatPrice, products } from "@/data/products";
 
-export default function CategoryPage({ params }: { params: { slug: string } }) {
-  const category = categories.find((item) => item.slug === params.slug);
+export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = use(params);
+  const category = categories.find((item) => item.slug === resolvedParams.slug);
   if (!category) notFound();
 
   const categoryProducts = products.filter((product) => product.category === category.slug);

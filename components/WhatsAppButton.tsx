@@ -1,5 +1,5 @@
 export function WhatsAppButton() {
-  const href = "https://wa.me/5215512345678?text=Hola%20TIMESHOP%2C%20quiero%20consultar%20un%20producto.";
+  const href = "https://wa.me/8617820479265?text=Hola%20TIMESHOP%2C%20quiero%20consultar%20un%20producto.";
 
   return (
     <a
