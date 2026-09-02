@@ -36,7 +36,7 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
         <div className="product-card-actions">
           <button type="button" className="quick-add-button" onClick={addProduct} disabled={isOutOfStock}>
-            {isOutOfStock ? "Out of stock" : "Quick add"}
+            {isOutOfStock ? "Out of stock" : "Add to bag"}
           </button>
           <Link href={`/products/${product.slug}`} className="quick-view-button">Quick view</Link>
         </div>

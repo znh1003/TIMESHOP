@@ -140,9 +140,9 @@ export function Header() {
           </div>
 
           <div className="mobile-header-actions">
-            <Link href="/account/favorites" aria-label="Wishlist">♡</Link>
-            <button type="button" onClick={() => setCartOpen(true)} aria-label="Bag">
-              Bag{itemCount > 0 ? <span className="cart-badge">{itemCount}</span> : null}
+            <Link className="mobile-wishlist-link" href="/account/favorites" aria-label="Wishlist">♡</Link>
+            <button type="button" className="mobile-bag-button" onClick={() => setCartOpen(true)} aria-label={`Bag${itemCount > 0 ? `, ${itemCount} items` : ""}`}>
+              <span>Bag</span>{itemCount > 0 ? <span className="cart-badge">{itemCount}</span> : null}
             </button>
           </div>
         </div>
