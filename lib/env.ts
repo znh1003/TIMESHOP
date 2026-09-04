@@ -9,7 +9,6 @@ const required = [
   "ADMIN_EMAIL",
   "PAYPAL_ENVIRONMENT",
   "PAYPAL_WEBHOOK_ID",
-  "RESEND_API_KEY",
   "EMAIL_FROM",
 ] as const;
 
