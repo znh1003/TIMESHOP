@@ -26,7 +26,8 @@ export async function getCatalogProducts(): Promise<Product[]> {
   const supabase = getSupabaseServerClient();
   if (!supabase) return products;
   const { data, error } = await supabase.from("products").select("id, slug, name, category, price, old_price, short_description, description, materials, dimensions, colors, stock, inventory_quantity, featured, limited, image_url, gallery, is_published").eq("is_published", true);
-  if (error || !data?.length) return products;
+  if (error) return products;
+  if (!data) return [];
 
   return (data as CatalogRow[]).map((row) => {
     const fallback = products.find((product) => product.slug === row.slug);

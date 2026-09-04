@@ -12,7 +12,7 @@ export default function ShopPage() {
   useEffect(() => {
     fetch("/api/products").then(async (response) => {
       const data = await response.json() as { items?: Product[] };
-      if (response.ok && data.items?.length) setProducts(data.items);
+      if (response.ok && data.items) setProducts(data.items);
     }).catch(() => undefined);
   }, []);
   const filteredProducts = products

@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     products: () => supabase.from("products").select("id, name, category, price, stock, inventory_quantity, featured, is_published, image_url, gallery, created_at").order("created_at", { ascending: false }),
     orders: () => supabase.from("orders").select("id, order_number, customer_name, guest_email, phone, shipping_address, total, order_status, payment_status, paypal_capture_id, tracking_number, shipping_carrier, shipped_at, created_at").order("created_at", { ascending: false }),
     returns: () => supabase.from("returns").select("id, order_id, reason, status, created_at, orders(customer_name, guest_email, order_number)").order("created_at", { ascending: false }),
-    refunds: () => supabase.from("refunds").select("id, order_id, refund_amount, refund_status, created_at").order("created_at", { ascending: false }),
+    refunds: () => supabase.from("refunds").select("id, order_id, refund_amount, refund_status, refund_reason, created_at, orders(customer_name, guest_email, order_number), returns(reason)").order("created_at", { ascending: false }),
   } as const;
 
   if (resource === "customers") {
@@ -105,6 +105,11 @@ export async function PATCH(request: Request) {
     if (!id || !status || !allowedStatuses.includes(status)) return NextResponse.json({ error: "Estado de devolución inválido." }, { status: 400 });
     const { data, error } = await supabase.from("returns").update({ status }).eq("id", id).select("id, status").single();
     if (error) return NextResponse.json({ error: "No se pudo actualizar la devolución." }, { status: 500 });
+    if (status === "Recibida") {
+      const { data: restocked, error: restockError } = await supabase.rpc("restock_received_return", { p_return_id: id });
+      if (restockError) return NextResponse.json({ error: "La devolución se actualizó, pero no se pudo devolver el inventario." }, { status: 500 });
+      return NextResponse.json({ item: data, restocked: Boolean(restocked) });
+    }
     return NextResponse.json({ item: data });
   }
   if (resource === "orders") {
