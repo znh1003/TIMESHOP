@@ -22,7 +22,7 @@ async function currentUser(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limited = rateLimit(request, "paypal-create-order", 10, 60_000);
+  const limited = await rateLimit(request, "paypal-create-order", 10, 60_000);
   if (limited) return limited;
   try {
     let body: { items?: Array<{ id?: string | number; quantity?: number }>; currency?: string; orderId?: string; customerName?: string; email?: string; phone?: string; shippingAddress?: Record<string, string> };

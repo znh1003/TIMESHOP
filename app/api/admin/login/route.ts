@@ -4,7 +4,7 @@ import { isAdminEmail } from "@/lib/admin-auth";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const limited = rateLimit(request, "admin-login", 5, 15 * 60_000);
+  const limited = await rateLimit(request, "admin-login", 5, 15 * 60_000);
   if (limited) return limited;
   const { email, password } = await request.json() as { email?: string; password?: string };
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

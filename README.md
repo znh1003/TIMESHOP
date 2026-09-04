@@ -41,6 +41,8 @@ ADMIN_EMAIL=admin@tu-dominio.com
 
 Para enviar confirmaciones de pedido y avisos de envío, agrega también `RESEND_API_KEY` en Vercel y verifica el dominio de `EMAIL_FROM` en Resend. Sin esa clave los pagos y envíos continúan funcionando, pero no se enviarán correos.
 
+Para activar límite de solicitudes global entre instancias de Vercel, crea una base de datos Redis en Upstash y configura `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Vercel. Sin estas variables, el sitio conserva un límite de seguridad local por instancia.
+
 Antes de activar pagos reales, configura en PayPal el webhook `PAYMENT.CAPTURE.COMPLETED` y los eventos `PAYMENT.REFUND.*` apuntando a `https://tu-dominio.com/api/paypal/webhook`. Ejecuta todas las migraciones de `supabase/migrations` y verifica que `GET /api/health` responda `200` antes de publicar.
 
 ## Estado actual

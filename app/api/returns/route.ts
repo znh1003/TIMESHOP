@@ -20,7 +20,7 @@ async function currentUser(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limited = rateLimit(request, "return-request", 5, 60 * 60_000);
+  const limited = await rateLimit(request, "return-request", 5, 60 * 60_000);
   if (limited) return limited;
   try {
     let body: { orderNumber?: string; reason?: string; description?: string };

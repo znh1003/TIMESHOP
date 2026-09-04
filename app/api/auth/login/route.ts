@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const limited = rateLimit(request, "customer-login", 10, 15 * 60_000);
+  const limited = await rateLimit(request, "customer-login", 10, 15 * 60_000);
   if (limited) return limited;
   try {
     const body = await request.json() as { email?: string; password?: string };

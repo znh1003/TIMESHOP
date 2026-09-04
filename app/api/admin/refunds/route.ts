@@ -4,7 +4,7 @@ import { refundPayPalCapture } from "@/lib/paypal-client";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const limited = rateLimit(request, "admin-refund", 5, 60 * 60_000);
+  const limited = await rateLimit(request, "admin-refund", 5, 60 * 60_000);
   if (limited) return limited;
   const auth = createAdminAuthClient(() => request.headers.get("cookie")?.split(";").map((part) => {
     const [name, ...value] = part.trim().split("=");
