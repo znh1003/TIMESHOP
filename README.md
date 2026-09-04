@@ -43,6 +43,8 @@ Para enviar confirmaciones de pedido y avisos de envío, agrega también `RESEND
 
 Para activar límite de solicitudes global entre instancias de Vercel, crea una base de datos Redis en Upstash y configura `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Vercel. Sin estas variables, el sitio conserva un límite de seguridad local por instancia.
 
+Para monitorear errores de producción con Sentry, crea un proyecto Next.js en Sentry y configura su DSN como `NEXT_PUBLIC_SENTRY_DSN` en Vercel. Sin este valor, el monitoreo queda desactivado sin afectar el sitio.
+
 Antes de activar pagos reales, configura en PayPal el webhook `PAYMENT.CAPTURE.COMPLETED` y los eventos `PAYMENT.REFUND.*` apuntando a `https://tu-dominio.com/api/paypal/webhook`. Ejecuta todas las migraciones de `supabase/migrations` y verifica que `GET /api/health` responda `200` antes de publicar.
 
 ## Estado actual

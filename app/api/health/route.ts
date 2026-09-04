@@ -8,6 +8,7 @@ export async function GET() {
   let databaseReady = false;
   const emailConfigured = Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
   const globalRateLimitConfigured = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  const errorMonitoringConfigured = Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN);
 
   if (supabase) {
     const { error } = await supabase.from("products").select("id").limit(1);
@@ -25,6 +26,7 @@ export async function GET() {
       payments: environment.ok ? "configured" : "unavailable",
       email: emailConfigured ? "configured" : "not_configured",
       rateLimit: globalRateLimitConfigured ? "global" : "local_fallback",
+      errorMonitoring: errorMonitoringConfigured ? "configured" : "not_configured",
     },
     missingConfiguration: environment.ok ? [] : environment.missing,
   }, { status: ok ? 200 : 503 });
