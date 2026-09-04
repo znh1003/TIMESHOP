@@ -45,7 +45,7 @@ export async function getCatalogProducts(): Promise<Product[]> {
       materials: row.materials,
       dimensions: row.dimensions,
       colors: row.colors,
-      stock: row.inventory_quantity === 0 ? "Agotado" : row.inventory_quantity !== null && row.inventory_quantity <= 5 ? "Pocas unidades" : row.stock,
+      stock: row.inventory_quantity === null ? row.stock : row.inventory_quantity === 0 ? "Agotado" : row.inventory_quantity <= 5 ? "Pocas unidades" : "En stock",
       inventoryQuantity: row.inventory_quantity ?? undefined,
       featured: row.featured,
       limited: row.limited,

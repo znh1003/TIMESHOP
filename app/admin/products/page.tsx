@@ -13,7 +13,7 @@ export default function AdminProductsPage() {
   const { items: products, loading, error, setItems } = useAdminResource<AdminProduct>("products");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState({ name: "", category: "", price: "", stock: "", inventoryQuantity: "", gallery: [] as string[] });
+  const [draft, setDraft] = useState({ name: "", category: "", price: "", inventoryQuantity: "", gallery: [] as string[] });
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -29,14 +29,14 @@ export default function AdminProductsPage() {
     setCreating(false);
     setEditingId(product.id);
     setSaveError("");
-    setDraft({ name: product.name, category: product.category ?? "", price: String(product.price), stock: product.stock ?? "", inventoryQuantity: String(product.inventory_quantity ?? 0), gallery: product.gallery?.length ? product.gallery : product.image_url ? [product.image_url] : [] });
+    setDraft({ name: product.name, category: product.category ?? "", price: String(product.price), inventoryQuantity: String(product.inventory_quantity ?? 0), gallery: product.gallery?.length ? product.gallery : product.image_url ? [product.image_url] : [] });
   };
 
   const beginCreating = () => {
     setCreating(true);
     setEditingId(null);
     setSaveError("");
-    setDraft({ name: "", category: "", price: "", stock: "En stock", inventoryQuantity: "0", gallery: [] });
+    setDraft({ name: "", category: "", price: "", inventoryQuantity: "0", gallery: [] });
   };
 
   const uploadImages = async (files: FileList | File[]) => {
@@ -85,7 +85,7 @@ export default function AdminProductsPage() {
     setSaving(true);
     setSaveError("");
     try {
-      const response = await fetch("/api/admin", { method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, name: draft.name, category: draft.category, price: Number(draft.price), stock: draft.stock, inventoryQuantity: Number(draft.inventoryQuantity), gallery: draft.gallery }) });
+      const response = await fetch("/api/admin", { method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, name: draft.name, category: draft.category, price: Number(draft.price), inventoryQuantity: Number(draft.inventoryQuantity), gallery: draft.gallery }) });
       const data = await response.json() as { item?: AdminProduct; error?: string };
       if (!response.ok || !data.item) throw new Error(data.error ?? "No se pudo guardar el producto.");
       const savedProduct = data.item;
@@ -144,7 +144,7 @@ export default function AdminProductsPage() {
                 <td>Crea el producto para subir imágenes.</td>
                 <td><select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} aria-label="Categoría del producto"><option value="">Selecciona</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select></td>
                 <td><input type="number" min="0.01" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} aria-label="Precio del producto" /></td>
-                <td><input value={draft.stock} onChange={(event) => setDraft({ ...draft, stock: event.target.value })} aria-label="Inventario del producto" /></td>
+                <td>Pendiente de calcular</td>
                 <td><input type="number" min="0" step="1" value={draft.inventoryQuantity} onChange={(event) => setDraft({ ...draft, inventoryQuantity: event.target.value })} aria-label="Unidades disponibles" /></td>
                 <td><span className="status-pill">Borrador</span></td><td>-</td>
                 <td><button className="small-button" onClick={() => saveProduct()} disabled={saving}>{saving ? "Guardando" : "Crear"}</button><button className="small-button" onClick={() => setCreating(false)} disabled={saving}>Cancelar</button></td>
@@ -166,7 +166,7 @@ export default function AdminProductsPage() {
                   </td>
                   <td>{editingId === product.id ? <select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} aria-label="Categoría del producto"><option value="">Selecciona</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select> : product.category}</td>
                   <td>{editingId === product.id ? <input type="number" min="0.01" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} aria-label="Precio del producto" /> : formatPrice(product.price)}</td>
-                  <td>{editingId === product.id ? <input value={draft.stock} onChange={(event) => setDraft({ ...draft, stock: event.target.value })} aria-label="Inventario del producto" /> : product.stock}</td>
+                  <td>{product.inventory_quantity === 0 ? "Agotado" : (product.inventory_quantity ?? 0) <= 5 ? "Pocas unidades" : "En stock"}</td>
                   <td>{editingId === product.id ? <input type="number" min="0" step="1" value={draft.inventoryQuantity} onChange={(event) => setDraft({ ...draft, inventoryQuantity: event.target.value })} aria-label="Unidades disponibles" /> : product.inventory_quantity ?? 0}</td>
                   <td><span className="status-pill">{product.is_published ? "Publicado" : "Borrador"}</span></td>
                   <td>

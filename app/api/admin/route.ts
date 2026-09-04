@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (resource === "dashboard") {
     const [orders, products, refunds] = await Promise.all([
       supabase.from("orders").select("order_number, customer_name, guest_email, total, order_status").order("created_at", { ascending: false }).limit(100),
-      supabase.from("products").select("id, name, stock, inventory_quantity, price, featured").order("created_at", { ascending: false }),
+      supabase.from("products").select("id, name, stock, inventory_quantity, price, featured, is_published").order("created_at", { ascending: false }),
       supabase.from("refunds").select("refund_amount"),
     ]);
     if (orders.error || products.error || refunds.error) return NextResponse.json({ error: "No se pudieron cargar los datos del panel." }, { status: 500 });
@@ -63,10 +63,16 @@ function productSlug(name: string) {
 
 const productCategories = ["hogar", "mascotas", "auto", "outdoor", "regalos"];
 
+function stockLabel(quantity: number) {
+  if (quantity === 0) return "Agotado";
+  if (quantity <= 5) return "Pocas unidades";
+  return "En stock";
+}
+
 export async function POST(request: Request) {
   const supabase = await authorizedClient(request);
   if (!supabase) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  const { name, category, price, stock, inventoryQuantity } = await request.json() as { name?: string; category?: string; price?: number; stock?: string; inventoryQuantity?: number };
+  const { name, category, price, inventoryQuantity } = await request.json() as { name?: string; category?: string; price?: number; inventoryQuantity?: number };
   const cleanName = name?.trim() ?? "";
   const cleanCategory = category?.trim() ?? "";
   const productPrice = Number(price);
@@ -81,7 +87,7 @@ export async function POST(request: Request) {
     name: cleanName,
     category: cleanCategory,
     price: Math.round(productPrice * 100) / 100,
-    stock: stock?.trim() || "En stock",
+    stock: stockLabel(quantity),
     inventory_quantity: quantity,
     short_description: "",
     description: "",
@@ -99,7 +105,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await authorizedClient(request);
   if (!supabase) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  const { id, featured, isPublished, name, category, price, stock, inventoryQuantity, gallery, resource, status, trackingNumber, shippingCarrier } = await request.json() as { id?: string; featured?: boolean; isPublished?: boolean; name?: string; category?: string; price?: number; stock?: string; inventoryQuantity?: number; gallery?: string[]; resource?: string; status?: string; trackingNumber?: string; shippingCarrier?: string };
+  const { id, featured, isPublished, name, category, price, inventoryQuantity, gallery, resource, status, trackingNumber, shippingCarrier } = await request.json() as { id?: string; featured?: boolean; isPublished?: boolean; name?: string; category?: string; price?: number; inventoryQuantity?: number; gallery?: string[]; resource?: string; status?: string; trackingNumber?: string; shippingCarrier?: string };
   if (resource === "returns") {
     const allowedStatuses = ["Solicitud de devolución", "En revisión", "Aprobada", "Rechazada", "Recibida", "Cerrada"];
     if (!id || !status || !allowedStatuses.includes(status)) return NextResponse.json({ error: "Estado de devolución inválido." }, { status: 400 });
@@ -143,13 +149,10 @@ export async function PATCH(request: Request) {
     if (!Number.isFinite(price) || price <= 0) return NextResponse.json({ error: "El precio debe ser mayor a cero." }, { status: 400 });
     update.price = Math.round(price * 100) / 100;
   }
-  if (stock !== undefined) {
-    if (!stock.trim()) return NextResponse.json({ error: "El inventario es obligatorio." }, { status: 400 });
-    update.stock = stock.trim();
-  }
   if (inventoryQuantity !== undefined) {
     if (!Number.isInteger(inventoryQuantity) || inventoryQuantity < 0) return NextResponse.json({ error: "El inventario debe ser un número entero igual o mayor a cero." }, { status: 400 });
     update.inventory_quantity = inventoryQuantity;
+    update.stock = stockLabel(inventoryQuantity);
   }
   if (gallery !== undefined) {
     if (!Array.isArray(gallery) || gallery.length > 8 || gallery.some((image) => typeof image !== "string" || !image.startsWith("https://"))) {
