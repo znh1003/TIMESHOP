@@ -5,8 +5,9 @@ import { Redis } from "@upstash/redis";
 type RateLimitEntry = { count: number; resetAt: number };
 
 const requests = new Map<string, RateLimitEntry>();
-const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const redis = redisUrl && process.env.UPSTASH_REDIS_REST_TOKEN
+  ? new Redis({ url: redisUrl.startsWith("http") ? redisUrl : `https://${redisUrl}`, token: process.env.UPSTASH_REDIS_REST_TOKEN })
   : null;
 const globalLimiters = new Map<string, Ratelimit>();
 
