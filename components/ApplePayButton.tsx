@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useCart } from "@/components/cart-provider";
+import type { CheckoutDraftInput } from "@/components/ExpressCheckout";
 
 declare class ApplePaySession {
   static canMakePayments(): boolean;
@@ -27,9 +28,11 @@ declare global {
 interface ApplePayButtonProps {
   onSuccess: (orderId: string) => void;
   onError: (message: string) => void;
+  checkoutData: CheckoutDraftInput;
+  disabled: boolean;
 }
 
-export default function ApplePayButton({ onSuccess, onError }: ApplePayButtonProps) {
+export default function ApplePayButton({ onSuccess, onError, checkoutData, disabled }: ApplePayButtonProps) {
   const { items, subtotal, shipping, total } = useCart();
   const [isEligible, setIsEligible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -120,6 +123,7 @@ export default function ApplePayButton({ onSuccess, onError }: ApplePayButtonPro
               items: items.map((item) => ({ id: item.id, quantity: item.quantity })),
               currency: "MXN",
               orderId,
+              ...checkoutData,
             }),
           });
 
@@ -169,7 +173,7 @@ export default function ApplePayButton({ onSuccess, onError }: ApplePayButtonPro
       onError(err instanceof Error ? err.message : "No se pudo iniciar Apple Pay");
       setLoading(false);
     }
-  }, [items, subtotal, shipping, total, onSuccess, onError]);
+  }, [checkoutData, items, subtotal, shipping, total, onSuccess, onError]);
 
   if (!isEligible) return null;
 
@@ -177,7 +181,7 @@ export default function ApplePayButton({ onSuccess, onError }: ApplePayButtonPro
     <div style={{ marginBottom: 12 }}>
       <button
         onClick={handlePayment}
-        disabled={loading || items.length === 0}
+        disabled={disabled || loading || items.length === 0}
         style={{
           width: "100%",
           height: 48,
@@ -192,7 +196,7 @@ export default function ApplePayButton({ onSuccess, onError }: ApplePayButtonPro
           alignItems: "center",
           justifyContent: "center",
           gap: 8,
-          opacity: items.length === 0 ? 0.5 : 1,
+          opacity: disabled || items.length === 0 ? 0.5 : 1,
         }}
         aria-label="Pagar con Apple Pay"
       >

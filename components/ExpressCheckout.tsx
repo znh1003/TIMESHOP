@@ -3,28 +3,38 @@
 import { useEffect, useState } from "react";
 import ApplePayButton from "./ApplePayButton";
 import GooglePayButton from "./GooglePayButton";
+import PayPalOfficialButtons from "./PayPalOfficialButtons";
+
+export type CheckoutDraftInput = {
+  customerName: string;
+  email: string;
+  phone: string;
+  shippingAddress: { state: string; city: string; postalCode: string; neighborhood: string; street: string; number: string };
+};
 
 interface ExpressCheckoutProps {
   onSuccess: (orderId: string) => void;
   onError: (message: string) => void;
+  checkoutData: CheckoutDraftInput;
+  disabled: boolean;
 }
 
 declare global {
   interface Window {
+    // PayPal and Google Pay are loaded from their official browser SDKs.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     paypal?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     google?: any;
   }
 }
 
-export default function ExpressCheckout({ onSuccess, onError }: ExpressCheckoutProps) {
+export default function ExpressCheckout({ onSuccess, onError, checkoutData, disabled }: ExpressCheckoutProps) {
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
 
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-    if (!clientId) {
-      console.warn("NEXT_PUBLIC_PAYPAL_CLIENT_ID no está configurado");
-      return;
-    }
+    if (!clientId) return;
 
     const loadScript = (src: string, attrs?: Record<string, string>): Promise<void> => {
       return new Promise((resolve, reject) => {
@@ -49,11 +59,9 @@ export default function ExpressCheckout({ onSuccess, onError }: ExpressCheckoutP
     const loadAllScripts = async () => {
       try {
         const currency = "MXN";
-        const environment = process.env.NEXT_PUBLIC_PAYPAL_ENVIRONMENT === "production" ? "production" : "sandbox";
-
         // Load PayPal SDK with applepay and googlepay components
         await loadScript(
-          `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}&components=applepay,googlepay&buyer-country=MX`,
+          `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}&components=buttons,applepay,googlepay&enable-funding=card`,
         );
 
         // Load Apple Pay SDK
@@ -64,17 +72,17 @@ export default function ExpressCheckout({ onSuccess, onError }: ExpressCheckoutP
 
         setScriptsLoaded(true);
       } catch (err) {
-        console.error("Failed to load payment scripts:", err);
+        onError(err instanceof Error ? err.message : "No se pudieron cargar los métodos de pago.");
       }
     };
 
     loadAllScripts();
-  }, []);
+  }, [onError]);
 
   if (!scriptsLoaded) return null;
 
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div className="notranslate" translate="no" style={{ marginBottom: 16 }}>
       <div
         style={{
           display: "flex",
@@ -89,8 +97,9 @@ export default function ExpressCheckout({ onSuccess, onError }: ExpressCheckoutP
         </span>
         <div style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
       </div>
-      <ApplePayButton onSuccess={onSuccess} onError={onError} />
-      <GooglePayButton onSuccess={onSuccess} onError={onError} />
+      <ApplePayButton onSuccess={onSuccess} onError={onError} checkoutData={checkoutData} disabled={disabled} />
+      <GooglePayButton onSuccess={onSuccess} onError={onError} checkoutData={checkoutData} disabled={disabled} />
+      <PayPalOfficialButtons onSuccess={onSuccess} onError={onError} checkoutData={checkoutData} disabled={disabled} />
     </div>
   );
 }

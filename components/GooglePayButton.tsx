@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useCart } from "@/components/cart-provider";
+import type { CheckoutDraftInput } from "@/components/ExpressCheckout";
 
 declare global {
   interface Window {
@@ -13,6 +14,8 @@ declare global {
 interface GooglePayButtonProps {
   onSuccess: (orderId: string) => void;
   onError: (message: string) => void;
+  checkoutData: CheckoutDraftInput;
+  disabled: boolean;
 }
 
 const baseRequest = {
@@ -20,7 +23,7 @@ const baseRequest = {
   apiVersionMinor: 0,
 };
 
-export default function GooglePayButton({ onSuccess, onError }: GooglePayButtonProps) {
+export default function GooglePayButton({ onSuccess, onError, checkoutData, disabled }: GooglePayButtonProps) {
   const { items, subtotal, shipping, total } = useCart();
   const [isEligible, setIsEligible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -76,6 +79,7 @@ export default function GooglePayButton({ onSuccess, onError }: GooglePayButtonP
             items: items.map((item) => ({ id: item.id, quantity: item.quantity })),
             currency: "MXN",
             orderId,
+            ...checkoutData,
           }),
         });
 
@@ -126,7 +130,7 @@ export default function GooglePayButton({ onSuccess, onError }: GooglePayButtonP
         };
       }
     },
-    [items, onSuccess, onError],
+    [checkoutData, items, onSuccess, onError],
   );
 
   const handleClick = useCallback(async () => {
@@ -166,7 +170,7 @@ export default function GooglePayButton({ onSuccess, onError }: GooglePayButtonP
     <div style={{ marginBottom: 12 }}>
       <button
         onClick={handleClick}
-        disabled={loading || items.length === 0}
+        disabled={disabled || loading || items.length === 0}
         style={{
           width: "100%",
           height: 48,
@@ -181,7 +185,7 @@ export default function GooglePayButton({ onSuccess, onError }: GooglePayButtonP
           alignItems: "center",
           justifyContent: "center",
           gap: 10,
-          opacity: items.length === 0 ? 0.5 : 1,
+          opacity: disabled || items.length === 0 ? 0.5 : 1,
           boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
         }}
         aria-label="Pagar con Google Pay"
