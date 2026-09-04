@@ -45,6 +45,8 @@ Para activar límite de solicitudes global entre instancias de Vercel, crea una 
 
 Para monitorear errores de producción con Sentry, crea un proyecto Next.js en Sentry y configura su DSN como `NEXT_PUBLIC_SENTRY_DSN` en Vercel. Sin este valor, el monitoreo queda desactivado sin afectar el sitio.
 
+El procedimiento de respaldo, recuperación y simulacros está en [docs/backup-recovery.md](docs/backup-recovery.md). Los respaldos de base de datos no incluyen los archivos del bucket de Storage, por lo que las imágenes deben conservarse por separado.
+
 Antes de activar pagos reales, configura en PayPal el webhook `PAYMENT.CAPTURE.COMPLETED` y los eventos `PAYMENT.REFUND.*` apuntando a `https://tu-dominio.com/api/paypal/webhook`. Ejecuta todas las migraciones de `supabase/migrations` y verifica que `GET /api/health` responda `200` antes de publicar.
 
 ## Estado actual
