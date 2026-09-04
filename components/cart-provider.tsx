@@ -11,7 +11,7 @@ import {
 } from "react";
 
 export type CartItem = {
-  id: number;
+  id: string | number;
   slug: string;
   name: string;
   price: number;
@@ -26,8 +26,8 @@ type CartContextValue = {
   total: number;
   itemCount: number;
   addToCart: (product: Omit<CartItem, "quantity">) => void;
-  updateQuantity: (id: number, delta: number) => void;
-  removeFromCart: (id: number) => void;
+  updateQuantity: (id: string | number, delta: number) => void;
+  removeFromCart: (id: string | number) => void;
   clearCart: () => void;
 };
 
@@ -67,7 +67,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new CustomEvent("timeshop:add-to-cart", { detail: product }));
   };
 
-  const updateQuantity = (id: number, delta: number) => {
+  const updateQuantity = (id: string | number, delta: number) => {
     setItems((current) =>
       current
         .map((entry) =>
@@ -77,7 +77,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: string | number) => {
     setItems((current) => current.filter((entry) => entry.id !== id));
   };
 
@@ -87,7 +87,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     () => items.reduce((total, item) => total + item.price * item.quantity, 0),
     [items],
   );
-  const shipping = subtotal > 0 ? 299 : 0;
+  const shipping = subtotal > 0 && subtotal < 2500 ? 299 : 0;
   const total = subtotal + shipping;
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
 

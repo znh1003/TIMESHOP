@@ -7,7 +7,7 @@ export type Category = {
 };
 
 export type Product = {
-  id: number;
+  id: string | number;
   databaseId?: string;
   slug: string;
   name: string;

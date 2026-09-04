@@ -19,20 +19,22 @@ type CatalogRow = {
   limited: boolean;
   image_url: string;
   gallery: string[];
+  is_published: boolean;
 };
 
 export async function getCatalogProducts(): Promise<Product[]> {
   const supabase = getSupabaseServerClient();
   if (!supabase) return products;
-  const { data, error } = await supabase.from("products").select("id, slug, name, category, price, old_price, short_description, description, materials, dimensions, colors, stock, inventory_quantity, featured, limited, image_url, gallery");
+  const { data, error } = await supabase.from("products").select("id, slug, name, category, price, old_price, short_description, description, materials, dimensions, colors, stock, inventory_quantity, featured, limited, image_url, gallery, is_published").eq("is_published", true);
   if (error || !data?.length) return products;
 
-  return (data as CatalogRow[]).flatMap((row) => {
+  return (data as CatalogRow[]).map((row) => {
     const fallback = products.find((product) => product.slug === row.slug);
-    if (!fallback) return [];
-    return [{
-      ...fallback,
+    return {
+      ...(fallback ?? { badge: undefined, details: [], oldPrice: undefined }),
+      id: row.id,
       databaseId: row.id,
+      slug: row.slug,
       name: row.name,
       category: row.category,
       price: Number(row.price),
@@ -46,8 +48,8 @@ export async function getCatalogProducts(): Promise<Product[]> {
       inventoryQuantity: row.inventory_quantity ?? undefined,
       featured: row.featured,
       limited: row.limited,
-      image: row.image_url,
-      gallery: row.gallery,
-    }];
+      image: row.image_url || row.gallery?.[0] || "",
+      gallery: row.gallery?.length ? row.gallery : row.image_url ? [row.image_url] : [],
+    };
   });
 }

@@ -47,10 +47,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ items: data });
   }
   if (resource === "favorites") {
-    const { data, error } = await database.from("favorites").select("product_id, products!inner(slug)").eq("user_id", user.id);
+    const { data, error } = await database.from("favorites").select("product_id").eq("user_id", user.id);
     if (error) return NextResponse.json({ error: "No se pudieron cargar los favoritos." }, { status: 500 });
-    const slugs = (data as Array<{ products: Array<{ slug: string }> }>).flatMap((favorite) => favorite.products.map((product) => product.slug));
-    return NextResponse.json({ items: slugs });
+    return NextResponse.json({ items: (data ?? []).map((favorite) => favorite.product_id) });
   }
   return NextResponse.json({ error: "Recurso no encontrado." }, { status: 404 });
 }

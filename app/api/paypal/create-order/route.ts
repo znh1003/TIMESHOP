@@ -22,7 +22,7 @@ async function currentUser(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    let body: { items?: Array<{ id?: number; quantity?: number }>; currency?: string; orderId?: string; customerName?: string; email?: string; phone?: string; shippingAddress?: Record<string, string> };
+    let body: { items?: Array<{ id?: string | number; quantity?: number }>; currency?: string; orderId?: string; customerName?: string; email?: string; phone?: string; shippingAddress?: Record<string, string> };
     try {
       body = await request.json();
     } catch {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const items = Array.isArray(body.items) ? body.items : [];
     const products = await getCatalogProducts();
     const requestedItems = items.map((item) => ({
-      product: products.find((entry) => entry.id === Number(item.id)),
+      product: products.find((entry) => entry.databaseId === String(item.id) || entry.id === item.id),
       quantity: Math.max(1, Math.min(20, Number(item.quantity ?? 1))),
     }));
     if (requestedItems.some((item) => !item.product)) {

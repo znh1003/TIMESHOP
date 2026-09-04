@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { categories, products } from "@/data/products";
+import { useEffect, useState } from "react";
+import { categories, products as fallbackProducts, type Product } from "@/data/products";
 import { ProductCard } from "@/components/product-card";
 
 export default function ShopPage() {
+  const [products, setProducts] = useState<Product[]>(fallbackProducts);
   const [category, setCategory] = useState("all");
   const [price, setPrice] = useState("all");
   const [sort, setSort] = useState("featured");
+  useEffect(() => {
+    fetch("/api/products").then(async (response) => {
+      const data = await response.json() as { items?: Product[] };
+      if (response.ok && data.items?.length) setProducts(data.items);
+    }).catch(() => undefined);
+  }, []);
   const filteredProducts = products
     .filter((product) => category === "all" || product.category === category)
     .filter((product) => {
@@ -19,7 +26,7 @@ export default function ShopPage() {
     .sort((first, second) => {
       if (sort === "price-low") return first.price - second.price;
       if (sort === "price-high") return second.price - first.price;
-      if (sort === "newest") return second.id - first.id;
+      if (sort === "newest") return String(second.id).localeCompare(String(first.id));
       return Number(Boolean(second.featured)) - Number(Boolean(first.featured));
     });
 
