@@ -51,6 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/admin/customers">Clientes</Link>
             <Link href="/admin/returns">Devoluciones</Link>
             <Link href="/admin/refunds">Refunds</Link>
+            <Link href="/admin/messages">Mensajes</Link>
             <Link href="/admin/audit">Actividad</Link>
           </nav>
           <button

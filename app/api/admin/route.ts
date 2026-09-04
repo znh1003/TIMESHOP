@@ -59,6 +59,7 @@ export async function GET(request: Request) {
     returns: () => supabase.from("returns").select("id, order_id, reason, status, inspection_notes, restock_approved, created_at, orders(customer_name, guest_email, order_number)").order("created_at", { ascending: false }),
     refunds: () => supabase.from("refunds").select("id, order_id, refund_amount, refund_status, refund_reason, created_at, orders(customer_name, guest_email, order_number), returns(reason)").order("created_at", { ascending: false }),
     audit: () => supabase.from("admin_audit_logs").select("id, admin_email, action, resource_type, resource_id, details, created_at").order("created_at", { ascending: false }).limit(200),
+    messages: () => supabase.from("contact_messages").select("id, name, email, message, status, created_at, resolved_at").order("created_at", { ascending: false }).limit(200),
   } as const;
 
   if (resource === "customers") {
@@ -145,6 +146,14 @@ export async function PATCH(request: Request) {
       if (restockError) return NextResponse.json({ error: "La devolución se actualizó, pero no se pudo devolver el inventario." }, { status: 500 });
       return NextResponse.json({ item: data, restocked: Boolean(restocked) });
     }
+    return NextResponse.json({ item: data });
+  }
+  if (resource === "messages") {
+    const allowedStatuses = ["Nuevo", "En proceso", "Resuelto"];
+    if (!id || !status || !allowedStatuses.includes(status)) return NextResponse.json({ error: "Estado de mensaje inválido." }, { status: 400 });
+    const { data, error } = await supabase.from("contact_messages").update({ status, resolved_at: status === "Resuelto" ? new Date().toISOString() : null }).eq("id", id).select("id, status, resolved_at").single();
+    if (error) return NextResponse.json({ error: "No se pudo actualizar el mensaje." }, { status: 500 });
+    void recordAdminAction(supabase, adminEmail, "updated", "contact_message", id, { status });
     return NextResponse.json({ item: data });
   }
   if (resource === "orders") {
