@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
   const queries = {
     products: () => supabase.from("products").select("id, name, category, price, stock, inventory_quantity, featured, image_url, gallery, created_at").order("created_at", { ascending: false }),
-    orders: () => supabase.from("orders").select("id, order_number, customer_name, guest_email, total, order_status, payment_status, paypal_capture_id, created_at").order("created_at", { ascending: false }),
+    orders: () => supabase.from("orders").select("id, order_number, customer_name, guest_email, phone, shipping_address, total, order_status, payment_status, paypal_capture_id, tracking_number, shipping_carrier, shipped_at, created_at").order("created_at", { ascending: false }),
     returns: () => supabase.from("returns").select("id, order_id, reason, status, created_at, orders(customer_name, guest_email, order_number)").order("created_at", { ascending: false }),
     refunds: () => supabase.from("refunds").select("id, order_id, refund_amount, refund_status, created_at").order("created_at", { ascending: false }),
   } as const;
@@ -60,12 +60,27 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await authorizedClient(request);
   if (!supabase) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  const { id, featured, name, category, price, stock, inventoryQuantity, gallery, resource, status } = await request.json() as { id?: string; featured?: boolean; name?: string; category?: string; price?: number; stock?: string; inventoryQuantity?: number; gallery?: string[]; resource?: string; status?: string };
+  const { id, featured, name, category, price, stock, inventoryQuantity, gallery, resource, status, trackingNumber, shippingCarrier } = await request.json() as { id?: string; featured?: boolean; name?: string; category?: string; price?: number; stock?: string; inventoryQuantity?: number; gallery?: string[]; resource?: string; status?: string; trackingNumber?: string; shippingCarrier?: string };
   if (resource === "returns") {
     const allowedStatuses = ["Solicitud de devolución", "En revisión", "Aprobada", "Rechazada", "Recibida", "Cerrada"];
     if (!id || !status || !allowedStatuses.includes(status)) return NextResponse.json({ error: "Estado de devolución inválido." }, { status: 400 });
     const { data, error } = await supabase.from("returns").update({ status }).eq("id", id).select("id, status").single();
     if (error) return NextResponse.json({ error: "No se pudo actualizar la devolución." }, { status: 500 });
+    return NextResponse.json({ item: data });
+  }
+  if (resource === "orders") {
+    const allowedStatuses = ["Pendiente", "Procesando", "Enviado", "Entregado", "Cancelado"];
+    if (!id || !status || !allowedStatuses.includes(status)) return NextResponse.json({ error: "Estado de pedido inválido." }, { status: 400 });
+    const tracking = trackingNumber?.trim() ?? "";
+    const carrier = shippingCarrier?.trim() ?? "";
+    if (status === "Enviado" && (!tracking || !carrier)) return NextResponse.json({ error: "Indica paquetería y número de guía antes de enviar." }, { status: 400 });
+    const { data, error } = await supabase.from("orders").update({
+      order_status: status,
+      tracking_number: tracking || null,
+      shipping_carrier: carrier || null,
+      shipped_at: status === "Enviado" ? new Date().toISOString() : null,
+    }).eq("id", id).select("id, order_status, tracking_number, shipping_carrier, shipped_at").single();
+    if (error) return NextResponse.json({ error: "No se pudo actualizar el envío." }, { status: 500 });
     return NextResponse.json({ item: data });
   }
   if (!id) return NextResponse.json({ error: "Producto inválido." }, { status: 400 });
