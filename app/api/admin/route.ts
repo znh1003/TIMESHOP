@@ -13,12 +13,19 @@ async function authorizedClient(request: Request) {
   const auth = createAdminAuthClient(requestCookies(request));
   const { data } = auth ? await auth.auth.getUser() : { data: { user: null } };
   if (!isAdminEmail(data.user?.email)) return null;
-  return createAdminDataClient();
+  const supabase = createAdminDataClient();
+  if (!supabase || !data.user?.email) return null;
+  return { supabase, adminEmail: data.user.email };
+}
+
+function recordAdminAction(supabase: NonNullable<ReturnType<typeof createAdminDataClient>>, adminEmail: string, action: string, resourceType: string, resourceId: string, details: Record<string, unknown> = {}) {
+  return supabase.from("admin_audit_logs").insert({ admin_email: adminEmail, action, resource_type: resourceType, resource_id: resourceId, details }).then(() => undefined);
 }
 
 export async function GET(request: Request) {
-  const supabase = await authorizedClient(request);
-  if (!supabase) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const authorized = await authorizedClient(request);
+  if (!authorized) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const { supabase } = authorized;
 
   const resource = new URL(request.url).searchParams.get("resource");
   if (resource === "dashboard") {
@@ -71,8 +78,9 @@ function stockLabel(quantity: number) {
 }
 
 export async function POST(request: Request) {
-  const supabase = await authorizedClient(request);
-  if (!supabase) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const authorized = await authorizedClient(request);
+  if (!authorized) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const { supabase, adminEmail } = authorized;
   const { name, category, price, inventoryQuantity } = await request.json() as { name?: string; category?: string; price?: number; inventoryQuantity?: number };
   const cleanName = name?.trim() ?? "";
   const cleanCategory = category?.trim() ?? "";
@@ -100,18 +108,21 @@ export async function POST(request: Request) {
     is_published: false,
   }).select("id, name, category, price, stock, inventory_quantity, featured, is_published, image_url, gallery").single();
   if (error) return NextResponse.json({ error: error.code === "23505" ? "Ya existe un producto con ese nombre." : "No se pudo crear el producto." }, { status: 500 });
+  void recordAdminAction(supabase, adminEmail, "created", "product", data.id, { name: data.name, isPublished: data.is_published });
   return NextResponse.json({ item: data }, { status: 201 });
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await authorizedClient(request);
-  if (!supabase) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const authorized = await authorizedClient(request);
+  if (!authorized) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const { supabase, adminEmail } = authorized;
   const { id, featured, isPublished, name, category, price, inventoryQuantity, gallery, resource, status, trackingNumber, shippingCarrier } = await request.json() as { id?: string; featured?: boolean; isPublished?: boolean; name?: string; category?: string; price?: number; inventoryQuantity?: number; gallery?: string[]; resource?: string; status?: string; trackingNumber?: string; shippingCarrier?: string };
   if (resource === "returns") {
     const allowedStatuses = ["Solicitud de devolución", "En revisión", "Aprobada", "Rechazada", "Recibida", "Cerrada"];
     if (!id || !status || !allowedStatuses.includes(status)) return NextResponse.json({ error: "Estado de devolución inválido." }, { status: 400 });
     const { data, error } = await supabase.from("returns").update({ status }).eq("id", id).select("id, status").single();
     if (error) return NextResponse.json({ error: "No se pudo actualizar la devolución." }, { status: 500 });
+    void recordAdminAction(supabase, adminEmail, "updated", "return", id, { status });
     if (status === "Recibida") {
       const { data: restocked, error: restockError } = await supabase.rpc("restock_received_return", { p_return_id: id });
       if (restockError) return NextResponse.json({ error: "La devolución se actualizó, pero no se pudo devolver el inventario." }, { status: 500 });
@@ -132,6 +143,7 @@ export async function PATCH(request: Request) {
       shipped_at: status === "Enviado" ? new Date().toISOString() : null,
     }).eq("id", id).select("id, order_number, guest_email, customer_name, order_status, tracking_number, shipping_carrier, shipped_at, shipping_email_sent_at").single();
     if (error) return NextResponse.json({ error: "No se pudo actualizar el envío." }, { status: 500 });
+    void recordAdminAction(supabase, adminEmail, "updated", "order", id, { status, trackingNumber: tracking || null, shippingCarrier: carrier || null });
     if (status === "Enviado" && !data.shipping_email_sent_at && data.guest_email && data.shipping_carrier && data.tracking_number) {
       void sendShippingNotification({ email: data.guest_email, customerName: data.customer_name, orderNumber: data.order_number, shippingCarrier: data.shipping_carrier, trackingNumber: data.tracking_number })
         .then((sent) => sent ? supabase.from("orders").update({ shipping_email_sent_at: new Date().toISOString() }).eq("id", id).is("shipping_email_sent_at", null) : null)
@@ -170,12 +182,14 @@ export async function PATCH(request: Request) {
   if (Object.keys(update).length === 0) return NextResponse.json({ error: "No hay cambios para guardar." }, { status: 400 });
   const { data, error } = await supabase.from("products").update(update).eq("id", id).select("id, name, category, price, stock, inventory_quantity, featured, is_published, image_url, gallery").single();
   if (error) return NextResponse.json({ error: "No se pudo actualizar el producto." }, { status: 500 });
+  void recordAdminAction(supabase, adminEmail, "updated", "product", id, update);
   return NextResponse.json({ item: data });
 }
 
 export async function DELETE(request: Request) {
-  const supabase = await authorizedClient(request);
-  if (!supabase) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const authorized = await authorizedClient(request);
+  if (!authorized) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const { supabase, adminEmail } = authorized;
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Producto inválido." }, { status: 400 });
   const { count, error: lookupError } = await supabase.from("order_items").select("id", { count: "exact", head: true }).eq("product_id", id);
@@ -183,5 +197,6 @@ export async function DELETE(request: Request) {
   if (count) return NextResponse.json({ error: "Este producto ya tiene pedidos y debe permanecer como borrador." }, { status: 409 });
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "No se pudo eliminar el producto." }, { status: 500 });
+  void recordAdminAction(supabase, adminEmail, "deleted", "product", id);
   return NextResponse.json({ ok: true });
 }
