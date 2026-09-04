@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient, tableNames } from "@/lib/supabase";
 import { verifyPayPalWebhook } from "@/lib/paypal-client";
+import { sendOrderConfirmation } from "@/lib/email";
 
 type CaptureResource = {
   id?: string;
@@ -12,7 +13,7 @@ type CaptureResource = {
 async function recordCapturedOrder(supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>, paypalOrderId: string, resource: CaptureResource) {
   const { data: existingOrder, error: existingOrderError } = await supabase
     .from(tableNames.orders)
-    .select("id")
+    .select("id, order_number, guest_email, customer_name, total, currency, confirmation_email_sent_at")
     .eq("paypal_order_id", paypalOrderId)
     .maybeSingle();
   if (existingOrderError) throw new Error("No se pudo consultar el pedido de PayPal.");
@@ -21,6 +22,10 @@ async function recordCapturedOrder(supabase: NonNullable<ReturnType<typeof getSu
     await supabase.from(tableNames.orders).update({ payment_status: "Pagado", order_status: "Procesando", paypal_capture_id: resource.id ?? null }).eq("id", existingOrder.id);
     await supabase.from(tableNames.payments).update({ status: "Pagado", paypal_capture_id: resource.id ?? null }).eq("paypal_order_id", paypalOrderId);
     await supabase.rpc("confirm_product_inventory", { p_paypal_order_id: paypalOrderId });
+    if (!existingOrder.confirmation_email_sent_at && existingOrder.guest_email) {
+      const sent = await sendOrderConfirmation({ email: existingOrder.guest_email, customerName: existingOrder.customer_name, orderNumber: existingOrder.order_number, total: existingOrder.total, currency: existingOrder.currency }).catch(() => false);
+      if (sent) await supabase.from(tableNames.orders).update({ confirmation_email_sent_at: new Date().toISOString() }).eq("id", existingOrder.id).is("confirmation_email_sent_at", null);
+    }
     return;
   }
 
@@ -52,7 +57,7 @@ async function recordCapturedOrder(supabase: NonNullable<ReturnType<typeof getSu
       paypal_order_id: paypalOrderId,
       paypal_capture_id: resource.id ?? null,
     })
-    .select("id")
+    .select("id, order_number, guest_email, customer_name, total, currency")
     .single();
   if (orderError?.code === "23505") return;
   if (orderError || !order) throw new Error("No se pudo guardar el pedido capturado.");
@@ -79,6 +84,10 @@ async function recordCapturedOrder(supabase: NonNullable<ReturnType<typeof getSu
   if (paymentError) throw new Error("No se pudo registrar el pago capturado.");
   await supabase.rpc("confirm_product_inventory", { p_paypal_order_id: paypalOrderId });
   await supabase.from("checkout_drafts").update({ status: "captured" }).eq("paypal_order_id", paypalOrderId);
+  if (order.guest_email) {
+    const sent = await sendOrderConfirmation({ email: order.guest_email, customerName: order.customer_name, orderNumber: order.order_number, total: order.total, currency: order.currency }).catch(() => false);
+    if (sent) await supabase.from(tableNames.orders).update({ confirmation_email_sent_at: new Date().toISOString() }).eq("id", order.id).is("confirmation_email_sent_at", null);
+  }
 }
 
 export async function POST(request: Request) {

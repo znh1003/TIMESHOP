@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminAuthClient, createAdminDataClient, isAdminEmail } from "@/lib/admin-auth";
+import { sendShippingNotification } from "@/lib/email";
 
 function requestCookies(request: Request) {
   return () => request.headers.get("cookie")?.split(";").map((part) => {
@@ -129,8 +130,13 @@ export async function PATCH(request: Request) {
       tracking_number: tracking || null,
       shipping_carrier: carrier || null,
       shipped_at: status === "Enviado" ? new Date().toISOString() : null,
-    }).eq("id", id).select("id, order_status, tracking_number, shipping_carrier, shipped_at").single();
+    }).eq("id", id).select("id, order_number, guest_email, customer_name, order_status, tracking_number, shipping_carrier, shipped_at, shipping_email_sent_at").single();
     if (error) return NextResponse.json({ error: "No se pudo actualizar el envío." }, { status: 500 });
+    if (status === "Enviado" && !data.shipping_email_sent_at && data.guest_email && data.shipping_carrier && data.tracking_number) {
+      void sendShippingNotification({ email: data.guest_email, customerName: data.customer_name, orderNumber: data.order_number, shippingCarrier: data.shipping_carrier, trackingNumber: data.tracking_number })
+        .then((sent) => sent ? supabase.from("orders").update({ shipping_email_sent_at: new Date().toISOString() }).eq("id", id).is("shipping_email_sent_at", null) : null)
+        .catch(() => undefined);
+    }
     return NextResponse.json({ item: data });
   }
   if (!id) return NextResponse.json({ error: "Producto inválido." }, { status: 400 });

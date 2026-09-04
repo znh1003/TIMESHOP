@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { capturePayPalOrder } from "@/lib/paypal-client";
 import { getSupabaseServerClient, tableNames } from "@/lib/supabase";
+import { sendOrderConfirmation } from "@/lib/email";
 
 function requestCookies(request: Request) {
   return request.headers.get("cookie")?.split(";").map((part) => {
@@ -114,6 +115,11 @@ export async function POST(request: Request) {
       }
       await supabase.rpc("confirm_product_inventory", { p_paypal_order_id: orderId });
       await supabase.from("checkout_drafts").update({ status: "captured" }).eq("paypal_order_id", orderId);
+      if (orderData.guest_email) {
+        void sendOrderConfirmation({ email: orderData.guest_email, customerName: orderData.customer_name, orderNumber: orderData.order_number, total: orderData.total, currency: orderData.currency })
+          .then((sent) => sent ? supabase.from(tableNames.orders).update({ confirmation_email_sent_at: new Date().toISOString() }).eq("id", orderData.id).is("confirmation_email_sent_at", null) : null)
+          .catch(() => undefined);
+      }
     }
 
     return NextResponse.json({ result, captured: true, captureId, status });

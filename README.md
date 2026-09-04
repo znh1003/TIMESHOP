@@ -10,7 +10,7 @@ E-commerce premium para México con enfoque en lifestyle, diseño y alto ticket.
 - Vercel ready
 - PayPal ready
 - Supabase ready
-- Resend ready
+- Resend optional for transactional email
 
 ## Scripts
 
@@ -35,10 +35,11 @@ NEXT_PUBLIC_PAYPAL_CLIENT_ID=tu-client-id
 PAYPAL_CLIENT_SECRET=tu-client-secret
 PAYPAL_ENVIRONMENT=sandbox
 PAYPAL_WEBHOOK_ID=tu-webhook-id
-RESEND_API_KEY=tu-api-key
 EMAIL_FROM=hola@tu-dominio.com
 ADMIN_EMAIL=admin@tu-dominio.com
 ```
+
+Para enviar confirmaciones de pedido y avisos de envío, agrega también `RESEND_API_KEY` en Vercel y verifica el dominio de `EMAIL_FROM` en Resend. Sin esa clave los pagos y envíos continúan funcionando, pero no se enviarán correos.
 
 Antes de activar pagos reales, configura en PayPal el webhook `PAYMENT.CAPTURE.COMPLETED` y los eventos `PAYMENT.REFUND.*` apuntando a `https://tu-dominio.com/api/paypal/webhook`. Ejecuta todas las migraciones de `supabase/migrations` y verifica que `GET /api/health` responda `200` antes de publicar.
 
