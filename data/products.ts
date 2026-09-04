@@ -8,6 +8,7 @@ export type Category = {
 
 export type Product = {
   id: number;
+  databaseId?: string;
   slug: string;
   name: string;
   category: "hogar" | "mascotas" | "auto" | "outdoor" | "regalos";
@@ -23,6 +24,7 @@ export type Product = {
   image: string;
   gallery: string[];
   stock: string;
+  inventoryQuantity?: number;
   featured?: boolean;
   limited?: boolean;
 };

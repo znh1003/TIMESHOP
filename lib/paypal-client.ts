@@ -108,3 +108,59 @@ export async function capturePayPalOrder(orderId: string) {
 
   return captureResponse.json();
 }
+
+export async function refundPayPalCapture(captureId: string, amount?: number, requestId?: string) {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  const environment = process.env.PAYPAL_ENVIRONMENT === "production" ? "https://api.paypal.com" : "https://api-m.sandbox.paypal.com";
+  if (!clientId || !clientSecret) throw new Error("PayPal credentials are missing");
+
+  const tokenResponse = await fetch(`${environment}/v1/oauth2/token`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials",
+  });
+  if (!tokenResponse.ok) throw new Error("Unable to fetch PayPal access token");
+  const { access_token } = await tokenResponse.json() as { access_token: string };
+
+  const response = await fetch(`${environment}/v2/payments/captures/${captureId}/refund`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json", Prefer: "return=representation", ...(requestId ? { "PayPal-Request-Id": requestId } : {}) },
+    body: amount ? JSON.stringify({ amount: { currency_code: "MXN", value: amount.toFixed(2) } }) : undefined,
+  });
+  if (!response.ok) throw new Error(`PayPal refund failed: ${await response.text()}`);
+  return response.json() as Promise<{ id?: string; status?: string; amount?: { value?: string } }>;
+}
+
+export async function verifyPayPalWebhook(event: unknown, headers: Headers) {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  const baseUrl = process.env.PAYPAL_ENVIRONMENT === "production" ? "https://api.paypal.com" : "https://api-m.sandbox.paypal.com";
+  if (!clientId || !clientSecret || !webhookId) throw new Error("PayPal webhook credentials are missing");
+
+  const tokenResponse = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials",
+  });
+  if (!tokenResponse.ok) throw new Error("Unable to fetch PayPal access token");
+  const { access_token } = await tokenResponse.json() as { access_token: string };
+
+  const verificationResponse = await fetch(`${baseUrl}/v1/notifications/verify-webhook-signature`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      auth_algo: headers.get("paypal-auth-algo"),
+      cert_url: headers.get("paypal-cert-url"),
+      transmission_id: headers.get("paypal-transmission-id"),
+      transmission_sig: headers.get("paypal-transmission-sig"),
+      transmission_time: headers.get("paypal-transmission-time"),
+      webhook_id: webhookId,
+      webhook_event: event,
+    }),
+  });
+  if (!verificationResponse.ok) throw new Error("PayPal webhook signature verification failed");
+  const { verification_status } = await verificationResponse.json() as { verification_status?: string };
+  return verification_status === "SUCCESS";
+}

@@ -31,12 +31,16 @@ NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role
 PAYPAL_CLIENT_ID=tu-client-id
+NEXT_PUBLIC_PAYPAL_CLIENT_ID=tu-client-id
 PAYPAL_CLIENT_SECRET=tu-client-secret
 PAYPAL_ENVIRONMENT=sandbox
 PAYPAL_WEBHOOK_ID=tu-webhook-id
 RESEND_API_KEY=tu-api-key
 EMAIL_FROM=hola@tu-dominio.com
+ADMIN_EMAIL=admin@tu-dominio.com
 ```
+
+Antes de activar pagos reales, configura en PayPal el webhook `PAYMENT.CAPTURE.COMPLETED` y los eventos `PAYMENT.REFUND.*` apuntando a `https://tu-dominio.com/api/paypal/webhook`. Ejecuta todas las migraciones de `supabase/migrations` y verifica que `GET /api/health` responda `200` antes de publicar.
 
 ## Estado actual
 

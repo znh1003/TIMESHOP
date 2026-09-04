@@ -5,7 +5,9 @@ import { useCart } from "@/components/cart-provider";
 import { formatPrice } from "@/data/products";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import ExpressCheckout from "@/components/ExpressCheckout";
+import ExpressCheckout, { type CheckoutDraftInput } from "@/components/ExpressCheckout";
+import { AddressPasteAssist } from "@/components/address-paste-assist";
+import type { AddressFields } from "@/lib/address-parser";
 
 export default function CheckoutPage() {
   const { items, subtotal, shipping, total, clearCart } = useCart();
@@ -26,6 +28,13 @@ export default function CheckoutPage() {
   const [captureMessage, setCaptureMessage] = useState("");
   const [expressError, setExpressError] = useState("");
   const router = useRouter();
+  const checkoutData: CheckoutDraftInput = {
+    customerName: `${form.name} ${form.lastName}`.trim(),
+    email: form.email,
+    phone: form.phone,
+    shippingAddress: { state: form.state, city: form.city, postalCode: form.postalCode, neighborhood: form.neighborhood, street: form.street, number: form.number },
+  };
+  const checkoutDetailsComplete = Object.values(checkoutData.shippingAddress).every(Boolean) && Boolean(checkoutData.customerName && checkoutData.email && checkoutData.phone);
 
   const handleExpressSuccess = (orderId: string) => {
     clearCart();
@@ -33,8 +42,14 @@ export default function CheckoutPage() {
     router.replace(`/checkout?status=confirmed&order=${orderId}`);
   };
 
-  const handleExpressError = (message: string) => {
-    setExpressError(message);
+  const handleAddressRecognize = (address: AddressFields) => {
+    const [name, ...lastNameParts] = address.name.split(/\s+/).filter(Boolean);
+    setForm((current) => ({
+      ...current,
+      ...address,
+      name: name || current.name,
+      lastName: lastNameParts.join(" ") || current.lastName,
+    }));
   };
 
   useEffect(() => {
@@ -90,6 +105,7 @@ export default function CheckoutPage() {
           items: items.map((item) => ({ id: item.id, quantity: item.quantity })),
           currency: "MXN",
           orderId,
+          ...checkoutData,
         }),
       });
 
@@ -139,9 +155,9 @@ export default function CheckoutPage() {
   return (
     <div className="container-shell checkout-shell" style={{ padding: "24px 0 40px" }}>
       <div className="page-hero compact-hero">
-        <span className="eyebrow subdued">Secure checkout</span>
-        <h1>Complete your order</h1>
-        <p>Fast, protected, and easy to manage without creating an account.</p>
+        <span className="eyebrow subdued">Pago seguro</span>
+        <h1>Completa tu pedido</h1>
+        <p>Compra de forma rápida y segura sin crear una cuenta.</p>
         {captureMessage ? <p className="checkout-status" role="status">{captureMessage}</p> : null}
       </div>
 
@@ -154,60 +170,61 @@ export default function CheckoutPage() {
 
       <form className="form-shell checkout-form" onSubmit={handlePayPalCheckout}>
         <div className="form-card checkout-card">
+          <AddressPasteAssist onRecognize={handleAddressRecognize} />
           <div className="checkout-section">
-            <p className="guest-checkout-note">Guest checkout is available. No account is required to purchase.</p>
-            <h3>Contact details</h3>
+            <p className="guest-checkout-note">Puedes comprar como invitado. No necesitas crear una cuenta.</p>
+            <h3>Contacto</h3>
             <div className="field-row two-col">
               <div className="field">
-                <label>First name</label>
+                <label>Nombre</label>
                 <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
               </div>
               <div className="field">
-                <label>Last name</label>
+                <label>Apellidos</label>
                 <input value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} required />
               </div>
             </div>
             <div className="field-row two-col">
               <div className="field">
-                <label>Email</label>
+                <label>Correo electrónico</label>
                 <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required />
               </div>
               <div className="field">
-                <label>Phone</label>
+                <label>Teléfono</label>
                 <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} required />
               </div>
             </div>
           </div>
 
           <div className="checkout-section">
-            <h3>Shipping information</h3>
+            <h3>Envío</h3>
             <div className="field-row two-col">
               <div className="field">
-                <label>State</label>
+                <label>Estado</label>
                 <input value={form.state} onChange={(event) => setForm({ ...form, state: event.target.value })} required />
               </div>
               <div className="field">
-                <label>City</label>
+                <label>Ciudad</label>
                 <input value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} required />
               </div>
             </div>
             <div className="field-row two-col">
               <div className="field">
-                <label>Postal code</label>
+                <label>Código postal</label>
                 <input value={form.postalCode} onChange={(event) => setForm({ ...form, postalCode: event.target.value })} required />
               </div>
               <div className="field">
-                <label>Neighborhood</label>
+                <label>Colonia</label>
                 <input value={form.neighborhood} onChange={(event) => setForm({ ...form, neighborhood: event.target.value })} required />
               </div>
             </div>
             <div className="field-row two-col">
               <div className="field">
-                <label>Street</label>
+                <label>Calle</label>
                 <input value={form.street} onChange={(event) => setForm({ ...form, street: event.target.value })} required />
               </div>
               <div className="field">
-                <label>Number</label>
+                <label>Número</label>
                 <input value={form.number} onChange={(event) => setForm({ ...form, number: event.target.value })} required />
               </div>
             </div>
@@ -216,27 +233,16 @@ export default function CheckoutPage() {
 
         <aside className="summary-card order-summary">
           <div className="summary-topline">
-            <span className="eyebrow subdued">Payment</span>
+            <span className="eyebrow subdued">Pago</span>
           </div>
-          <h3 style={{ marginTop: 0 }}>Secure order</h3>
+          <h3 style={{ marginTop: 0 }}>Pedido seguro</h3>
           <div className="secure-note">
             <strong>Pago seguro</strong>
             <div>Aceptamos PayPal, Apple Pay y Google Pay. Tus datos están protegidos con cifrado SSL.</div>
           </div>
 
-          {expressError ? (
-            <p style={{ color: "#dc2626", fontSize: 14, margin: "8px 0" }} role="alert">
-              {expressError}
-            </p>
-          ) : null}
-
-          <ExpressCheckout onSuccess={handleExpressSuccess} onError={handleExpressError} />
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "16px 0" }}>
-            <div style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
-            <span style={{ fontSize: 12, color: "#6b7280" }}>o</span>
-            <div style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
-          </div>
+          <ExpressCheckout onSuccess={handleExpressSuccess} onError={setExpressError} checkoutData={checkoutData} disabled={!checkoutDetailsComplete || cartIsEmpty} />
+          {expressError ? <p style={{ color: "#dc2626", fontSize: 14, margin: "8px 0" }} role="alert">{expressError}</p> : null}
 
           <div className="meta-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
           <div className="meta-row"><span>Shipping</span><span>{formatPrice(shipping)}</span></div>
@@ -253,12 +259,12 @@ export default function CheckoutPage() {
                 }
               }}
             >
-              {loading ? "Processing..." : "Pay with PayPal"}
+              {loading ? "Procesando..." : "Pagar con PayPal"}
             </button>
           </div>
           <div style={{ marginTop: 12 }}>
             <Link href="/returns-policy" className="ghost-button" style={{ width: "100%" }}>
-              Return policy
+              Política de devoluciones
             </Link>
           </div>
         </aside>
