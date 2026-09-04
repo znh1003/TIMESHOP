@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createPayPalOrder } from "@/lib/paypal-client";
 import { getCatalogProducts } from "@/lib/catalog";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { rateLimit } from "@/lib/rate-limit";
 
 function requestCookies(request: Request) {
   return request.headers.get("cookie")?.split(";").map((part) => {
@@ -21,6 +22,8 @@ async function currentUser(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const limited = rateLimit(request, "paypal-create-order", 10, 60_000);
+  if (limited) return limited;
   try {
     let body: { items?: Array<{ id?: string | number; quantity?: number }>; currency?: string; orderId?: string; customerName?: string; email?: string; phone?: string; shippingAddress?: Record<string, string> };
     try {

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminAuthClient, createAdminDataClient, isAdminEmail } from "@/lib/admin-auth";
 import { refundPayPalCapture } from "@/lib/paypal-client";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const limited = rateLimit(request, "admin-refund", 5, 60 * 60_000);
+  if (limited) return limited;
   const auth = createAdminAuthClient(() => request.headers.get("cookie")?.split(";").map((part) => {
     const [name, ...value] = part.trim().split("=");
     return { name, value: value.join("=") };
