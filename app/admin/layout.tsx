@@ -11,23 +11,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const session = window.localStorage.getItem("timeshop_admin_session");
-    const allowed = session === "active";
-    startTransition(() => {
-      setIsAuthenticated(allowed);
-      setReady(true);
-    });
-
-    if (!allowed && pathname !== "/admin/login") {
-      router.replace("/admin/login");
-    }
+    if (pathname === "/admin/login") return;
+    void fetch("/api/admin/session")
+      .then(async (response) => response.ok ? response.json() as Promise<{ authenticated: boolean }> : { authenticated: false })
+      .then(({ authenticated }) => {
+        startTransition(() => {
+          setIsAuthenticated(authenticated);
+          setReady(true);
+        });
+        if (!authenticated) router.replace("/admin/login");
+      })
+      .catch(() => {
+        startTransition(() => setReady(true));
+        router.replace("/admin/login");
+      });
   }, [pathname, router]);
+
+  if (pathname === "/admin/login") {
+    return children;
+  }
 
   if (!ready) {
     return <div className="container-shell" style={{ padding: "48px 0" }}>Cargando panel...</div>;
   }
 
-  if (!isAuthenticated && pathname !== "/admin/login") {
+  if (!isAuthenticated) {
     return null;
   }
 
@@ -43,11 +51,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/admin/customers">Clientes</Link>
             <Link href="/admin/returns">Devoluciones</Link>
             <Link href="/admin/refunds">Refunds</Link>
+            <Link href="/admin/audit">Actividad</Link>
           </nav>
           <button
             className="ghost-button"
-            onClick={() => {
-              window.localStorage.removeItem("timeshop_admin_session");
+            onClick={async () => {
+              await fetch("/api/admin/logout", { method: "POST" });
               router.push("/admin/login");
             }}
             style={{ width: "100%", marginTop: "16px" }}

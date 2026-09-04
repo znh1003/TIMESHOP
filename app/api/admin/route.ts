@@ -38,11 +38,27 @@ export async function GET(request: Request) {
     return NextResponse.json({ orders: orders.data, products: products.data, refunds: refunds.data, customerCount: new Set((orders.data ?? []).map((order) => order.guest_email).filter(Boolean)).size });
   }
 
+  if (resource === "order") {
+    const id = new URL(request.url).searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Pedido no válido." }, { status: 400 });
+    const { data: order, error: orderError } = await supabase.from("orders").select("id, order_number, customer_name, guest_email, phone, shipping_address, total, currency, order_status, payment_status, paypal_order_id, paypal_capture_id, tracking_number, shipping_carrier, shipped_at, created_at").eq("id", id).maybeSingle();
+    if (orderError) return NextResponse.json({ error: "No se pudo cargar el pedido." }, { status: 500 });
+    if (!order) return NextResponse.json({ error: "Pedido no encontrado." }, { status: 404 });
+    const [items, returns, refunds] = await Promise.all([
+      supabase.from("order_items").select("id, product_name, price, quantity").eq("order_id", id),
+      supabase.from("returns").select("id, reason, description, status, inspection_notes, restock_approved, created_at, restocked_at").eq("order_id", id).order("created_at", { ascending: false }),
+      supabase.from("refunds").select("id, refund_amount, refund_status, refund_reason, refund_date, created_at").eq("order_id", id).order("created_at", { ascending: false }),
+    ]);
+    if (items.error || returns.error || refunds.error) return NextResponse.json({ error: "No se pudieron cargar los detalles del pedido." }, { status: 500 });
+    return NextResponse.json({ item: { ...order, items: items.data ?? [], returns: returns.data ?? [], refunds: refunds.data ?? [] } });
+  }
+
   const queries = {
     products: () => supabase.from("products").select("id, name, category, price, stock, inventory_quantity, featured, is_published, image_url, gallery, created_at").order("created_at", { ascending: false }),
     orders: () => supabase.from("orders").select("id, order_number, customer_name, guest_email, phone, shipping_address, total, order_status, payment_status, paypal_capture_id, tracking_number, shipping_carrier, shipped_at, created_at").order("created_at", { ascending: false }),
-    returns: () => supabase.from("returns").select("id, order_id, reason, status, created_at, orders(customer_name, guest_email, order_number)").order("created_at", { ascending: false }),
+    returns: () => supabase.from("returns").select("id, order_id, reason, status, inspection_notes, restock_approved, created_at, orders(customer_name, guest_email, order_number)").order("created_at", { ascending: false }),
     refunds: () => supabase.from("refunds").select("id, order_id, refund_amount, refund_status, refund_reason, created_at, orders(customer_name, guest_email, order_number), returns(reason)").order("created_at", { ascending: false }),
+    audit: () => supabase.from("admin_audit_logs").select("id, admin_email, action, resource_type, resource_id, details, created_at").order("created_at", { ascending: false }).limit(200),
   } as const;
 
   if (resource === "customers") {
@@ -116,14 +132,15 @@ export async function PATCH(request: Request) {
   const authorized = await authorizedClient(request);
   if (!authorized) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   const { supabase, adminEmail } = authorized;
-  const { id, featured, isPublished, name, category, price, inventoryQuantity, gallery, resource, status, trackingNumber, shippingCarrier } = await request.json() as { id?: string; featured?: boolean; isPublished?: boolean; name?: string; category?: string; price?: number; inventoryQuantity?: number; gallery?: string[]; resource?: string; status?: string; trackingNumber?: string; shippingCarrier?: string };
+  const { id, featured, isPublished, name, category, price, inventoryQuantity, gallery, resource, status, trackingNumber, shippingCarrier, restockApproved, inspectionNotes } = await request.json() as { id?: string; featured?: boolean; isPublished?: boolean; name?: string; category?: string; price?: number; inventoryQuantity?: number; gallery?: string[]; resource?: string; status?: string; trackingNumber?: string; shippingCarrier?: string; restockApproved?: boolean; inspectionNotes?: string };
   if (resource === "returns") {
     const allowedStatuses = ["Solicitud de devolución", "En revisión", "Aprobada", "Rechazada", "Recibida", "Cerrada"];
     if (!id || !status || !allowedStatuses.includes(status)) return NextResponse.json({ error: "Estado de devolución inválido." }, { status: 400 });
-    const { data, error } = await supabase.from("returns").update({ status }).eq("id", id).select("id, status").single();
+    const returnUpdate = status === "Recibida" ? { status, inspection_notes: inspectionNotes?.trim() || null, restock_approved: restockApproved === true } : { status };
+    const { data, error } = await supabase.from("returns").update(returnUpdate).eq("id", id).select("id, status, inspection_notes, restock_approved, restocked_at").single();
     if (error) return NextResponse.json({ error: "No se pudo actualizar la devolución." }, { status: 500 });
-    void recordAdminAction(supabase, adminEmail, "updated", "return", id, { status });
-    if (status === "Recibida") {
+    void recordAdminAction(supabase, adminEmail, "updated", "return", id, { status, restockApproved: status === "Recibida" ? restockApproved === true : null });
+    if (status === "Recibida" && restockApproved === true) {
       const { data: restocked, error: restockError } = await supabase.rpc("restock_received_return", { p_return_id: id });
       if (restockError) return NextResponse.json({ error: "La devolución se actualizó, pero no se pudo devolver el inventario." }, { status: 500 });
       return NextResponse.json({ item: data, restocked: Boolean(restocked) });

@@ -6,6 +6,7 @@ export async function GET() {
   const environment = assertRequiredEnv();
   const supabase = getSupabaseServerClient();
   let databaseReady = false;
+  const emailConfigured = Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
 
   if (supabase) {
     const { error } = await supabase.from("products").select("id").limit(1);
@@ -21,6 +22,7 @@ export async function GET() {
     services: {
       database: databaseReady ? "ready" : "unavailable",
       payments: environment.ok ? "configured" : "unavailable",
+      email: emailConfigured ? "configured" : "not_configured",
     },
     missingConfiguration: environment.ok ? [] : environment.missing,
   }, { status: ok ? 200 : 503 });
