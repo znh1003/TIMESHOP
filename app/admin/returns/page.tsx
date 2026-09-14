@@ -37,8 +37,8 @@ export default function AdminReturnsPage() {
   return (
     <div>
       <div className="page-hero">
-        <h1>Devoluciones</h1>
-        <p>Revisa solicitudes, motivos y documentación de clientes.</p>
+        <h1>退货管理</h1>
+        <p>查看客户的退货申请、原因和检查记录。</p>
       </div>
 
       <div className="admin-panel">
@@ -47,12 +47,12 @@ export default function AdminReturnsPage() {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Cliente</th>
-                <th>Motivo</th>
-                <th>Estado</th>
-                <th>Pedido</th>
-                <th>Inspección</th>
-                <th>Actualizar</th>
+                <th>客户</th>
+                <th>原因</th>
+                <th>状态</th>
+                <th>订单</th>
+                <th>检查</th>
+                <th>更新状态</th>
               </tr>
             </thead>
             <tbody>
@@ -61,18 +61,18 @@ export default function AdminReturnsPage() {
                   <td>{returnItem.id.slice(0, 8)}</td>
                   <td>{returnItem.orders?.customer_name ?? returnItem.orders?.guest_email ?? "-"}</td>
                   <td>{returnItem.reason ?? "-"}</td>
-                  <td><span className="status-pill">{returnItem.status ?? "En revisión"}</span></td>
+                  <td><span className="status-pill">{returnItem.status ?? "审核中"}</span></td>
                   <td>{returnItem.orders?.order_number ?? returnItem.order_id.slice(0, 8)}</td>
-                  <td>{returnItem.status === "Recibida" ? <>{returnItem.restock_approved ? "Reintegrar inventario" : "No reintegrar"}{returnItem.inspection_notes ? <><br />{returnItem.inspection_notes}</> : null}</> : "-"}</td>
-                  <td><select value={returnItem.status ?? "Solicitud de devolución"} onChange={(event) => updateStatus(returnItem.id, event.target.value)} disabled={updatingId === returnItem.id} aria-label="Estado de devolución"><option>Solicitud de devolución</option><option>En revisión</option><option>Aprobada</option><option>Rechazada</option><option>Recibida</option><option>Cerrada</option></select></td>
+                  <td>{returnItem.status === "Recibida" ? <>{returnItem.restock_approved ? "已恢复库存" : "不恢复库存"}{returnItem.inspection_notes ? <><br />{returnItem.inspection_notes}</> : null}</> : "-"}</td>
+                  <td><select value={returnItem.status ?? "Solicitud de devolución"} onChange={(event) => updateStatus(returnItem.id, event.target.value)} disabled={updatingId === returnItem.id} aria-label="退货状态"><option value="Solicitud de devolución">退货申请</option><option value="En revisión">审核中</option><option value="Aprobada">已批准</option><option value="Rechazada">已拒绝</option><option value="Recibida">已收到</option><option value="Cerrada">已关闭</option></select></td>
                 </tr>
               ))}
-              {!loading && returns.length === 0 ? <tr><td colSpan={7}>No hay devoluciones registradas.</td></tr> : null}
+              {!loading && returns.length === 0 ? <tr><td colSpan={7}>暂无退货记录。</td></tr> : null}
             </tbody>
           </table>
         </div>
         {error ? <p className="error-box">{error}</p> : null}
-        {inspection ? <section className="form-card" style={{ marginTop: 18 }}><h2>Recepción y revisión</h2><label>Notas de inspección<textarea value={inspection.notes} onChange={(event) => setInspection({ ...inspection, notes: event.target.value })} placeholder="Estado del artículo, daños o decisión de reventa" /></label><label><input type="checkbox" checked={inspection.restockApproved} onChange={(event) => setInspection({ ...inspection, restockApproved: event.target.checked })} /> Reintegrar artículos aprobados al inventario</label><div><button className="small-button" onClick={() => void saveInspection()} disabled={updatingId === inspection.id}>{updatingId === inspection.id ? "Guardando" : "Confirmar recepción"}</button><button className="small-button" onClick={() => setInspection(null)} disabled={updatingId === inspection.id}>Cancelar</button></div></section> : null}
+        {inspection ? <section className="form-card" style={{ marginTop: 18 }}><h2>收货与检查</h2><label>检查备注<textarea value={inspection.notes} onChange={(event) => setInspection({ ...inspection, notes: event.target.value })} placeholder="商品状态、损坏情况或是否可再次销售" /></label><label><input type="checkbox" checked={inspection.restockApproved} onChange={(event) => setInspection({ ...inspection, restockApproved: event.target.checked })} /> 将合格商品恢复到库存</label><div><button className="small-button" onClick={() => void saveInspection()} disabled={updatingId === inspection.id}>{updatingId === inspection.id ? "正在保存" : "确认收货"}</button><button className="small-button" onClick={() => setInspection(null)} disabled={updatingId === inspection.id}>取消</button></div></section> : null}
       </div>
     </div>
   );

@@ -1,10 +1,14 @@
 export async function createPayPalOrder({ amount, currency = "MXN", orderId }: { amount: number; currency?: string; orderId: string }) {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   const environment = process.env.PAYPAL_ENVIRONMENT === "production" ? "production" : "sandbox";
 
   if (!clientId || !clientSecret) {
     throw new Error("PayPal credentials are missing");
+  }
+  if (!siteUrl) {
+    throw new Error("NEXT_PUBLIC_SITE_URL is required to create a PayPal order");
   }
 
   const tokenResponse = await fetch(
@@ -48,8 +52,8 @@ export async function createPayPalOrder({ amount, currency = "MXN", orderId }: {
           brand_name: "TIMESHOP",
           landing_page: "NO_PREFERENCE",
           user_action: "PAY_NOW",
-          return_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://example.com"}/checkout?status=success`,
-          cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://example.com"}/checkout?status=cancelled`,
+          return_url: `${siteUrl}/checkout?status=success`,
+          cancel_url: `${siteUrl}/checkout?status=cancelled`,
         },
       }),
     },

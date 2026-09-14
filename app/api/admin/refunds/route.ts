@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminAuthClient, createAdminDataClient, isAdminEmail } from "@/lib/admin-auth";
+import { createAdminAuthClient, createAdminDataClient, hasAdminRole } from "@/lib/admin-auth";
 import { refundPayPalCapture } from "@/lib/paypal-client";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -11,9 +11,16 @@ export async function POST(request: Request) {
     return { name, value: value.join("=") };
   }) ?? []);
   const { data: authData } = auth ? await auth.auth.getUser() : { data: { user: null } };
-  if (!isAdminEmail(authData.user?.email)) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  if (!await hasAdminRole(authData.user?.id, ["admin", "finance"])) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  const { orderId, amount, reason } = await request.json() as { orderId?: string; amount?: number; reason?: string };
+  let orderId: string | undefined;
+  let amount: number | undefined;
+  let reason: string | undefined;
+  try {
+    ({ orderId, amount, reason } = await request.json() as { orderId?: string; amount?: number; reason?: string });
+  } catch {
+    return NextResponse.json({ error: "La solicitud no es válida." }, { status: 400 });
+  }
   if (!orderId) return NextResponse.json({ error: "Pedido no válido." }, { status: 400 });
 
   const supabase = createAdminDataClient();
@@ -36,8 +43,9 @@ export async function POST(request: Request) {
     const refund = await refundPayPalCapture(order.paypal_capture_id, refundAmount, requestKey);
     const { error } = await supabase.from("refunds").update({ refund_id: refund.id, refund_status: refund.status ?? "PENDING", refund_date: new Date().toISOString() }).eq("refund_request_key", requestKey);
     if (error) return NextResponse.json({ error: "El reembolso fue solicitado. PayPal confirmará su estado por webhook." }, { status: 202 });
+    await supabase.from("admin_audit_logs").insert({ admin_email: authData.user?.email ?? "unknown", action: "requested_refund", resource_type: "order", resource_id: order.id, details: { amount: refundAmount, reason: reason?.trim() || null, paypal_request_key: requestKey, refund_id: refund.id ?? null } });
     return NextResponse.json({ ok: true, refundId: refund.id, status: refund.status });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo procesar el reembolso." }, { status: 502 });
+  } catch {
+    return NextResponse.json({ error: "No se pudo procesar el reembolso." }, { status: 502 });
   }
 }

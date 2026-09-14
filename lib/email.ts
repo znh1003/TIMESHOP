@@ -20,6 +20,10 @@ async function sendEmail(to: string, subject: string, html: string) {
   return response.ok;
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
+}
+
 export async function sendOrderConfirmation(order: OrderEmail) {
   if (!order.email) return false;
   const name = order.customerName || "cliente";
@@ -31,4 +35,8 @@ export async function sendShippingNotification(order: OrderEmail & { shippingCar
   if (!order.email) return false;
   const name = order.customerName || "cliente";
   return sendEmail(order.email, `Tu pedido ${order.orderNumber} fue enviado`, `<p>Hola ${name},</p><p>Tu pedido <strong>${order.orderNumber}</strong> ya fue enviado.</p><p>Paquetería: <strong>${order.shippingCarrier}</strong><br>Guía: <strong>${order.trackingNumber}</strong></p>`);
+}
+
+export async function sendContactReply({ email, customerName, message }: { email: string; customerName: string; message: string }) {
+  return sendEmail(email, "Respuesta de TIMESHOP", `<p>Hola ${escapeHtml(customerName)},</p><p>${escapeHtml(message).replace(/\n/g, "<br>")}</p><p>Equipo TIMESHOP</p>`);
 }

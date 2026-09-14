@@ -6,6 +6,9 @@ import { useState } from "react";
 
 export const dynamic = "force-dynamic";
 
+const orderStatusLabel = (status: string | null) => ({ Pendiente: "待处理", Procesando: "处理中", Enviado: "已发货", Entregado: "已送达", Cancelado: "已取消" }[status ?? ""] ?? status ?? "待处理");
+const paymentStatusLabel = (status: string | null) => status === "Pagado" ? "已支付" : status ?? "待支付";
+
 export default function AdminOrdersPage() {
   type AdminOrder = { id: string; order_number: string; customer_name: string | null; guest_email: string | null; phone: string | null; shipping_address: { street?: string; number?: string; neighborhood?: string; city?: string; state?: string; postalCode?: string } | null; total: number; order_status: string | null; payment_status: string | null; paypal_capture_id: string | null; tracking_number: string | null; shipping_carrier: string | null; shipped_at: string | null; created_at: string };
   const { items: orders, loading, error, reload, setItems } = useAdminResource<AdminOrder>("orders");
@@ -30,12 +33,34 @@ export default function AdminOrdersPage() {
   });
 
   const exportOrders = () => {
-    const rows = [["Pedido", "Cliente", "Email", "Teléfono", "Total", "Estado", "Pago", "Fecha", "Paquetería", "Guía"], ...visibleOrders.map((order) => [order.order_number, order.customer_name ?? "", order.guest_email ?? "", order.phone ?? "", String(order.total), order.order_status ?? "", order.payment_status ?? "", order.created_at, order.shipping_carrier ?? "", order.tracking_number ?? ""])];
+    const rows = [["订单", "客户", "邮箱", "电话", "总额", "状态", "支付", "日期", "物流公司", "物流单号"], ...visibleOrders.map((order) => [order.order_number, order.customer_name ?? "", order.guest_email ?? "", order.phone ?? "", String(order.total), orderStatusLabel(order.order_status), paymentStatusLabel(order.payment_status), order.created_at, order.shipping_carrier ?? "", order.tracking_number ?? ""])];
     const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll("\"", "\"\"")}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "pedidos-timeshop.csv";
+    link.download = "TIMESHOP-订单.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportOrderDetails = async () => {
+    const response = await fetch("/api/admin?resource=order-report");
+    const data = await response.json() as { items?: Array<{ order_number: string; customer_name: string | null; guest_email: string | null; phone: string | null; shipping_address: AdminOrder["shipping_address"]; total: number; currency: string | null; order_status: string | null; payment_status: string | null; created_at: string; order_items: Array<{ product_name: string | null; price: number | null; quantity: number | null }> | null }>; error?: string };
+    if (!response.ok || !data.items) {
+      window.alert(data.error ?? "订单明细导出失败。");
+      return;
+    }
+    const rows = [["订单号", "下单时间", "客户", "邮箱", "电话", "收货地址", "商品", "单价", "数量", "商品小计", "订单总额", "币种", "订单状态", "支付状态"]];
+    data.items.forEach((order) => {
+      const address = order.shipping_address ? [order.shipping_address.street, order.shipping_address.number, order.shipping_address.neighborhood, order.shipping_address.city, order.shipping_address.state, order.shipping_address.postalCode].filter(Boolean).join(", ") : "";
+      const orderItems = order.order_items?.length ? order.order_items : [{ product_name: "", price: 0, quantity: 0 }];
+      orderItems.forEach((item) => rows.push([order.order_number, order.created_at, order.customer_name ?? "", order.guest_email ?? "", order.phone ?? "", address, item.product_name ?? "", String(item.price ?? 0), String(item.quantity ?? 0), String(Number(item.price ?? 0) * Number(item.quantity ?? 0)), String(order.total), order.currency ?? "MXN", orderStatusLabel(order.order_status), paymentStatusLabel(order.payment_status)]));
+    });
+    const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll("\"", "\"\"")}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "TIMESHOP-订单明细.csv";
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -46,12 +71,12 @@ export default function AdminOrdersPage() {
     try {
       const response = await fetch(`/api/admin?resource=order&id=${encodeURIComponent(orderId)}`);
       const data = await response.json() as { item?: NonNullable<typeof detail>; error?: string };
-      if (!response.ok || !data.item) throw new Error(data.error ?? "No se pudo cargar el detalle del pedido.");
+      if (!response.ok || !data.item) throw new Error(data.error ?? "订单详情加载失败。");
       setDetail(data.item);
       setRefundAmount("");
       setRefundReason("");
     } catch (loadError) {
-      setDetailError(loadError instanceof Error ? loadError.message : "No se pudo cargar el detalle del pedido.");
+      setDetailError(loadError instanceof Error ? loadError.message : "订单详情加载失败。");
     } finally {
       setLoadingDetail(false);
     }
@@ -69,40 +94,40 @@ export default function AdminOrdersPage() {
     try {
       const response = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resource: "orders", id: orderId, status: fulfillment.status, shippingCarrier: fulfillment.carrier, trackingNumber: fulfillment.trackingNumber }) });
       const data = await response.json() as { item?: Pick<AdminOrder, "id" | "order_status" | "shipping_carrier" | "tracking_number" | "shipped_at">; error?: string };
-      if (!response.ok || !data.item) throw new Error(data.error ?? "No se pudo actualizar el envío.");
+      if (!response.ok || !data.item) throw new Error(data.error ?? "物流信息更新失败。");
       setItems((current) => current.map((order) => order.id === orderId ? { ...order, ...data.item } : order));
       setEditingId(null);
     } catch (saveError) {
-      setFulfillmentError(saveError instanceof Error ? saveError.message : "No se pudo actualizar el envío.");
+      setFulfillmentError(saveError instanceof Error ? saveError.message : "物流信息更新失败。");
     } finally {
       setSavingFulfillment(false);
     }
   };
 
   const refundOrder = async (order: { id: string; total: number; paypal_capture_id: string | null; payment_status: string | null }) => {
-    if (!order.paypal_capture_id || order.payment_status !== "Pagado" || !window.confirm(`¿Reembolsar ${formatPrice(order.total)} a través de PayPal?`)) return;
+    if (!order.paypal_capture_id || order.payment_status !== "Pagado" || !window.confirm(`确定通过 PayPal 退款 ${formatPrice(order.total)} 吗？`)) return;
     const response = await fetch("/api/admin/refunds", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: order.id }) });
     const data = await response.json() as { error?: string };
-    if (!response.ok) { window.alert(data.error ?? "No se pudo procesar el reembolso."); return; }
-    window.alert("Reembolso solicitado correctamente.");
+    if (!response.ok) { window.alert(data.error ?? "退款处理失败。"); return; }
+    window.alert("退款申请已提交。");
     reload();
   };
 
   const refundFromDetail = async () => {
     if (!detail) return;
     const amount = Number(refundAmount);
-    if (!Number.isFinite(amount) || amount <= 0) { setRefundError("Indica un importe de reembolso válido."); return; }
-    if (!window.confirm(`¿Solicitar reembolso de ${formatPrice(amount)}?`)) return;
+    if (!Number.isFinite(amount) || amount <= 0) { setRefundError("请输入有效的退款金额。"); return; }
+    if (!window.confirm(`确定申请退款 ${formatPrice(amount)} 吗？`)) return;
     setRefunding(true);
     setRefundError("");
     try {
       const response = await fetch("/api/admin/refunds", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: detail.id, amount, reason: refundReason }) });
       const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error ?? "No se pudo procesar el reembolso.");
+      if (!response.ok) throw new Error(data.error ?? "退款处理失败。");
       await loadDetail(detail.id);
       reload();
     } catch (refundError) {
-      setRefundError(refundError instanceof Error ? refundError.message : "No se pudo procesar el reembolso.");
+      setRefundError(refundError instanceof Error ? refundError.message : "退款处理失败。");
     } finally {
       setRefunding(false);
     }
@@ -111,44 +136,45 @@ export default function AdminOrdersPage() {
   return (
     <div>
       <div className="page-hero">
-        <h1>Pedidos</h1>
-        <p>Revisa pagos, envío, clientes y seguimiento de cada compra.</p>
+        <h1>订单管理</h1>
+        <p>查看每笔订单的付款、客户和物流信息。</p>
       </div>
 
       <div className="admin-panel">
         <div className="form-grid" style={{ marginBottom: 18 }}>
-          <label>Buscar pedido, cliente, email o guía<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar" /></label>
-          <label>Estado<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Pendiente</option><option>Procesando</option><option>Enviado</option><option>Entregado</option><option>Cancelado</option></select></label>
+          <label>搜索订单、客户、邮箱或物流单号<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索" /></label>
+          <label>状态<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="Todos">全部</option><option value="Pendiente">待处理</option><option value="Procesando">处理中</option><option value="Enviado">已发货</option><option value="Entregado">已送达</option><option value="Cancelado">已取消</option></select></label>
         </div>
-        <button className="small-button" onClick={exportOrders} disabled={!visibleOrders.length}>Exportar CSV</button>
+        <button className="small-button" onClick={exportOrders} disabled={!visibleOrders.length}>导出订单汇总</button>
+        <button className="small-button" onClick={() => void exportOrderDetails()} disabled={!orders.length}>导出订单明细</button>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Pedido</th>
-                <th>Cliente</th>
-                <th>Email</th>
-                <th>Total</th>
-                <th>Estado</th>
-                <th>Fecha</th>
-                <th>Envío</th>
-                <th>Acciones</th>
+                <th>订单</th>
+                <th>客户</th>
+                <th>邮箱</th>
+                <th>总额</th>
+                <th>状态</th>
+                <th>日期</th>
+                <th>物流</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {visibleOrders.map((order) => (
                 <tr key={order.id}>
                   <td>{order.order_number}</td>
-                  <td>{order.customer_name ?? "Cliente"}</td>
+                  <td>{order.customer_name ?? "客户"}</td>
                   <td>{order.guest_email ?? "-"}</td>
                   <td>{formatPrice(order.total)}</td>
-                  <td>{editingId === order.id ? <select value={fulfillment.status} onChange={(event) => setFulfillment({ ...fulfillment, status: event.target.value })} aria-label="Estado del pedido"><option>Pendiente</option><option>Procesando</option><option>Enviado</option><option>Entregado</option><option>Cancelado</option></select> : <span className="status-pill">{order.order_status ?? "Pendiente"}</span>}</td>
-                  <td>{new Date(order.created_at).toLocaleDateString("es-MX")}</td>
-                  <td>{editingId === order.id ? <><input value={fulfillment.carrier} onChange={(event) => setFulfillment({ ...fulfillment, carrier: event.target.value })} placeholder="Paquetería" aria-label="Paquetería" /><input value={fulfillment.trackingNumber} onChange={(event) => setFulfillment({ ...fulfillment, trackingNumber: event.target.value })} placeholder="Número de guía" aria-label="Número de guía" /></> : order.tracking_number ? <>{order.shipping_carrier ?? "Paquetería"}<br />{order.tracking_number}</> : "Sin asignar"}</td>
-                  <td>{editingId === order.id ? <><button className="small-button" onClick={() => saveFulfillment(order.id)} disabled={savingFulfillment}>{savingFulfillment ? "Guardando" : "Guardar envío"}</button><button className="small-button" onClick={() => setEditingId(null)} disabled={savingFulfillment}>Cancelar</button></> : <><button className="small-button" onClick={() => void loadDetail(order.id)}>Ver detalle</button><button className="small-button" onClick={() => beginFulfillment(order)}>Gestionar envío</button>{order.payment_status === "Pagado" && order.paypal_capture_id ? <button className="small-button" onClick={() => refundOrder(order)}>Reembolsar</button> : null}</>}</td>
+                  <td>{editingId === order.id ? <select value={fulfillment.status} onChange={(event) => setFulfillment({ ...fulfillment, status: event.target.value })} aria-label="订单状态"><option value="Pendiente">待处理</option><option value="Procesando">处理中</option><option value="Enviado">已发货</option><option value="Entregado">已送达</option><option value="Cancelado">已取消</option></select> : <span className="status-pill">{orderStatusLabel(order.order_status)}</span>}</td>
+                  <td>{new Date(order.created_at).toLocaleDateString("zh-CN")}</td>
+                  <td>{editingId === order.id ? <><input value={fulfillment.carrier} onChange={(event) => setFulfillment({ ...fulfillment, carrier: event.target.value })} placeholder="物流公司" aria-label="物流公司" /><input value={fulfillment.trackingNumber} onChange={(event) => setFulfillment({ ...fulfillment, trackingNumber: event.target.value })} placeholder="物流单号" aria-label="物流单号" /></> : order.tracking_number ? <>{order.shipping_carrier ?? "物流公司"}<br />{order.tracking_number}</> : "未填写"}</td>
+                  <td>{editingId === order.id ? <><button className="small-button" onClick={() => saveFulfillment(order.id)} disabled={savingFulfillment}>{savingFulfillment ? "正在保存" : "保存物流"}</button><button className="small-button" onClick={() => setEditingId(null)} disabled={savingFulfillment}>取消</button></> : <><button className="small-button" onClick={() => void loadDetail(order.id)}>查看详情</button><button className="small-button" onClick={() => beginFulfillment(order)}>管理物流</button>{order.payment_status === "Pagado" && order.paypal_capture_id ? <button className="small-button" onClick={() => refundOrder(order)}>退款</button> : null}</>}</td>
                 </tr>
               ))}
-              {!loading && visibleOrders.length === 0 ? <tr><td colSpan={8}>{orders.length ? "No hay pedidos que coincidan con los filtros." : "No hay pedidos registrados."}</td></tr> : null}
+              {!loading && visibleOrders.length === 0 ? <tr><td colSpan={8}>{orders.length ? "没有符合筛选条件的订单。" : "暂无订单。"}</td></tr> : null}
             </tbody>
           </table>
         </div>

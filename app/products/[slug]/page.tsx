@@ -1,16 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
-import { formatPrice, getProductBySlug, type Product } from "@/data/products";
+import { formatPrice, type Product } from "@/data/products";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { useCart } from "@/components/cart-provider";
 import { use, useEffect, useState } from "react";
 import { TrustSignals } from "@/components/trust-signals";
 import { useWishlist } from "@/components/wishlist";
 
+function imageForColor(product: Product, color: string) {
+  return product.colorImages?.[color] ?? product.gallery[product.colors.indexOf(color)] ?? product.image;
+}
+
+function priceForColor(product: Product, color: string) {
+  return product.colorPrices?.[color] ?? product.price;
+}
+
 export default function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
-  const [product, setProduct] = useState<Product | undefined>(() => getProductBySlug(resolvedParams.slug));
+  const [product, setProduct] = useState<Product>();
+  const [productLoaded, setProductLoaded] = useState(false);
   const { addToCart } = useCart();
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
@@ -25,13 +35,23 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
       const databaseProduct = data.items?.find((item) => item.slug === resolvedParams.slug);
       if (response.ok && databaseProduct) {
         setProduct(databaseProduct);
-        setActiveImage(databaseProduct.gallery[0] ?? databaseProduct.image);
+        setActiveImage(imageForColor(databaseProduct, databaseProduct.colors[0] ?? ""));
         setSelectedColor(databaseProduct.colors[0] ?? "");
       }
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => setProductLoaded(true));
   }, [resolvedParams.slug]);
 
+  if (!productLoaded) return null;
   if (!product) notFound();
+
+  const isOutOfStock = product.stock.toLowerCase().includes("agotado");
+  const selectedPrice = priceForColor(product, selectedColor);
+
+  const selectImage = (image: string) => {
+    setActiveImage(image);
+    const matchingColor = product.colors.find((color) => imageForColor(product, color) === image);
+    if (matchingColor) setSelectedColor(matchingColor);
+  };
 
   const handleBackToProducts = () => {
     if (window.history.length > 1) {
@@ -49,7 +69,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
     description: product.description,
     image: product.gallery,
     brand: { "@type": "Brand", name: "TIMESHOP" },
-    offers: { "@type": "Offer", priceCurrency: "MXN", price: product.price, availability: product.stock.toLowerCase().includes("agotado") ? "https://schema.org/OutOfStock" : "https://schema.org/InStock" },
+    offers: { "@type": "Offer", priceCurrency: "MXN", price: selectedPrice, availability: isOutOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock" },
   };
 
   const whatsappHref = `https://wa.me/8617820479265?text=${encodeURIComponent(`Consulta sobre el producto ${product.name}`)}`;
@@ -64,7 +84,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         <div className="gallery-grid">
           <button type="button" className="gallery-main-image" onClick={() => setZoomOpen(true)} aria-label="Zoom product image"><img src={activeImage} alt={product.name} /></button>
           <div className="gallery-thumbnails">
-            {product.gallery.map((image, index) => <button type="button" key={`${product.slug}-${index}`} className={activeImage === image ? "is-active" : ""} onClick={() => setActiveImage(image)}><img src={image} alt={`${product.name} thumbnail ${index + 1}`} /></button>)}
+            {product.gallery.map((image, index) => <button type="button" key={`${product.slug}-${index}`} className={activeImage === image ? "is-active" : ""} onClick={() => selectImage(image)} aria-label={`Ver imagen ${index + 1} de ${product.name}`}><img src={image} alt={`${product.name} miniatura ${index + 1}`} /></button>)}
           </div>
         </div>
 
@@ -72,54 +92,58 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
           <h1 className="product-detail-title">{product.name}</h1>
           <div className="detail-rating" aria-label="5 de 5 estrellas">★★★★★ <span>5.0 · Opiniones</span></div>
           <div className="detail-price-row">
-            <div className="price">{formatPrice(product.price)}</div>
+            <div className="price">{formatPrice(selectedPrice)}</div>
             {product.oldPrice ? <span className="old-price">{formatPrice(product.oldPrice)}</span> : null}
           </div>
           <p className="muted" style={{ margin: "8px 0 18px" }}>{product.shortDescription}</p>
-          <div className="quantity-control" aria-label="Quantity">
+          <div className="quantity-control" aria-label="Cantidad">
             <span>Cantidad</span>
             <div>
-              <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Decrease quantity">−</button>
+              <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Reducir cantidad" disabled={isOutOfStock}>−</button>
               <strong>{quantity}</strong>
-              <button type="button" onClick={() => setQuantity((value) => value + 1)} aria-label="Increase quantity">+</button>
+              <button type="button" onClick={() => setQuantity((value) => value + 1)} aria-label="Aumentar cantidad" disabled={isOutOfStock}>+</button>
             </div>
           </div>
           <div className="variant-control">
             <div><span>Color</span><strong>{selectedColor}</strong></div>
             <div className="variant-options">
-              {product.colors.map((color) => <button type="button" key={color} className={selectedColor === color ? "is-selected" : ""} onClick={() => setSelectedColor(color)}>{color}</button>)}
+              {product.colors.map((color) => <button type="button" key={color} className={selectedColor === color ? "is-selected" : ""} onClick={() => { setSelectedColor(color); setActiveImage(imageForColor(product, color)); }} disabled={isOutOfStock}>{color}</button>)}
             </div>
           </div>
           <div className="meta-row"><span>Disponibilidad</span><span>{product.stock}</span></div>
           <div className="meta-row"><span>Materiales</span><span>{product.materials.join(", ")}</span></div>
           <div className="meta-row"><span>Dimensiones</span><span>{product.dimensions}</span></div>
+          <div className="meta-row"><span>Envío</span><span>{product.shippingFee ? formatPrice(product.shippingFee) : "Gratis"}</span></div>
+          <div className="meta-row"><span>Entrega estimada</span><span>7-15 días hábiles</span></div>
           <div className="detail-actions">
             <button
               className="primary-button"
+              disabled={isOutOfStock}
               onClick={() => {
-                for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: product.price, image: product.image });
+                for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: selectedPrice, image: imageForColor(product, selectedColor), color: selectedColor, shippingFee: product.shippingFee });
               }}
             >
-              Añadir al carrito
+              {isOutOfStock ? "Agotado" : "Añadir al carrito"}
             </button>
             <button
               className="secondary-button"
+              disabled={isOutOfStock}
               onClick={() => {
-                for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: product.price, image: product.image });
+                for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: selectedPrice, image: imageForColor(product, selectedColor), color: selectedColor, shippingFee: product.shippingFee });
                 router.push("/checkout");
               }}
             >
-              Comprar ahora
+              {isOutOfStock ? "Agotado" : "Comprar ahora"}
             </button>
           </div>
           <div className="detail-assurances">
             <div><strong>Pago seguro con PayPal</strong><span>Compra protegida</span></div>
-            <div><strong>Envío a todo México</strong><span>Entrega rastreada</span></div>
-            <div><strong>Devoluciones dentro de 30 días</strong><span>Proceso sencillo</span></div>
+            <div><strong>Envío a todo México</strong><span>Seguimiento cuando esté disponible</span></div>
+            <div><strong>Políticas transparentes</strong><span><Link href="/returns-policy">Consulta las condiciones</Link></span></div>
             <div><strong>Atención personalizada</strong><span>Estamos para ayudarte</span></div>
           </div>
           <div className="detail-actions" style={{ marginTop: 12 }}>
-            <button className={`ghost-button ${isSaved(product.id) ? "is-saved" : ""}`} onClick={() => toggle(product.id, product.slug)}>{isSaved(product.id) ? "♥ Saved" : "♡ Wishlist"}</button>
+            <button className={`ghost-button ${isSaved(product.id) ? "is-saved" : ""}`} onClick={() => toggle(product.id, product.slug)}>{isSaved(product.id) ? "♥ Guardado" : "♡ Favoritos"}</button>
             <a href={whatsappHref} target="_blank" rel="noreferrer" className="ghost-button">WhatsApp México</a>
           </div>
         </aside>
@@ -134,6 +158,12 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
           ))}
         </ul>
       </section>
+      {product.detailImages?.length ? <section className="product-detail-images" aria-label="Detalles del producto">
+        <h2 className="section-title">Detalles del producto</h2>
+        <div>
+          {product.detailImages.map((image, index) => <img key={`${product.slug}-detail-${index}`} src={image} alt={`${product.name} detalle ${index + 1}`} loading="lazy" />)}
+        </div>
+      </section> : null}
       <TrustSignals />
 
       <section className="section">
@@ -152,7 +182,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         <button type="button" className="ghost-button" onClick={handleBackToProducts}>Volver a productos</button>
       </div>
       <WhatsAppButton />
-      {zoomOpen ? <div className="image-lightbox" role="dialog" aria-modal="true" aria-label="Product image preview" onClick={() => setZoomOpen(false)}><button type="button" aria-label="Close image preview" onClick={() => setZoomOpen(false)}>×</button><img src={activeImage} alt={product.name} /></div> : null}
+      {zoomOpen ? <div className="image-lightbox" role="dialog" aria-modal="true" aria-label="Vista previa de la imagen del producto" onClick={() => setZoomOpen(false)}><button type="button" aria-label="Cerrar vista previa de la imagen" onClick={() => setZoomOpen(false)}>×</button><img src={activeImage} alt={product.name} /></div> : null}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }} />
     </div>
   );

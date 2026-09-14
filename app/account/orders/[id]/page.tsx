@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { formatPrice } from "@/data/products";
+import Link from "next/link";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -14,6 +15,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="container-shell" style={{ padding: "24px 0 40px" }}>
       <div className="page-hero">
+        <Link href="/account/orders" className="ghost-button">Volver a mis pedidos</Link>
         <h1>{order.order_number}</h1>
         <p>{order.order_status ?? "Pendiente"}</p>
       </div>

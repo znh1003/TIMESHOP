@@ -12,12 +12,12 @@ export default function AdminCustomersPage() {
   const visibleCustomers = customers.filter((customer) => [customer.name, customer.email, customer.city].some((value) => value.toLowerCase().includes(search.trim().toLowerCase())));
 
   const exportCustomers = () => {
-    const rows = [["Nombre", "Email", "Ciudad", "Pedidos", "Gasto total"], ...visibleCustomers.map((customer) => [customer.name, customer.email, customer.city, String(customer.orders), String(customer.totalSpent)])];
+    const rows = [["姓名", "邮箱", "城市", "订单数", "累计消费"], ...visibleCustomers.map((customer) => [customer.name, customer.email, customer.city, String(customer.orders), String(customer.totalSpent)])];
     const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll("\"", "\"\"")}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "clientes-timeshop.csv";
+    link.download = "TIMESHOP-客户.csv";
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -25,22 +25,22 @@ export default function AdminCustomersPage() {
   return (
     <div>
       <div className="page-hero">
-        <h1>Clientes</h1>
-        <p>Historial de clientes, compras y ubicación para ventas personalizadas.</p>
+        <h1>客户管理</h1>
+        <p>查看客户资料、购买记录和所在地。</p>
       </div>
 
       <div className="admin-panel">
-        <div className="form-grid" style={{ marginBottom: 18 }}><label>Buscar cliente<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, email o ciudad" /></label></div>
-        <button className="small-button" onClick={exportCustomers} disabled={!visibleCustomers.length}>Exportar CSV</button>
+        <div className="form-grid" style={{ marginBottom: 18 }}><label>搜索客户<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="姓名、邮箱或城市" /></label></div>
+        <button className="small-button" onClick={exportCustomers} disabled={!visibleCustomers.length}>导出 CSV</button>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Ciudad</th>
-                <th>Tickets</th>
-                <th>Gasto total</th>
+                <th>姓名</th>
+                <th>邮箱</th>
+                <th>城市</th>
+                <th>订单数</th>
+                <th>累计消费</th>
               </tr>
             </thead>
             <tbody>
@@ -53,7 +53,7 @@ export default function AdminCustomersPage() {
                   <td>{formatPrice(customer.totalSpent)}</td>
                 </tr>
               ))}
-              {!loading && visibleCustomers.length === 0 ? <tr><td colSpan={5}>{customers.length ? "No hay clientes que coincidan con la búsqueda." : "No hay clientes con pedidos registrados."}</td></tr> : null}
+              {!loading && visibleCustomers.length === 0 ? <tr><td colSpan={5}>{customers.length ? "没有符合搜索条件的客户。" : "暂无有订单记录的客户。"}</td></tr> : null}
             </tbody>
           </table>
         </div>

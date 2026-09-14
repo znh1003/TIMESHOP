@@ -36,7 +36,6 @@ PAYPAL_CLIENT_SECRET=tu-client-secret
 PAYPAL_ENVIRONMENT=sandbox
 PAYPAL_WEBHOOK_ID=tu-webhook-id
 EMAIL_FROM=hola@tu-dominio.com
-ADMIN_EMAIL=admin@tu-dominio.com
 ```
 
 Para enviar confirmaciones de pedido y avisos de envío, agrega también `RESEND_API_KEY` en Vercel y verifica el dominio de `EMAIL_FROM` en Resend. Sin esa clave los pagos y envíos continúan funcionando, pero no se enviarán correos.
@@ -46,6 +45,10 @@ Para activar límite de solicitudes global entre instancias de Vercel, crea una 
 Para monitorear errores de producción con Sentry, crea un proyecto Next.js en Sentry y configura su DSN como `NEXT_PUBLIC_SENTRY_DSN` en Vercel. Sin este valor, el monitoreo queda desactivado sin afectar el sitio.
 
 El procedimiento de respaldo, recuperación y simulacros está en [docs/backup-recovery.md](docs/backup-recovery.md). Los respaldos de base de datos no incluyen los archivos del bucket de Storage, por lo que las imágenes deben conservarse por separado.
+
+El procedimiento para identificar y reparar pedidos históricos incompletos está en [docs/order-reconciliation.md](docs/order-reconciliation.md).
+
+El acceso al panel se concede por usuario de Supabase, siguiendo [docs/admin-access.md](docs/admin-access.md).
 
 Antes de activar pagos reales, configura en PayPal el webhook `PAYMENT.CAPTURE.COMPLETED` y los eventos `PAYMENT.REFUND.*` apuntando a `https://tu-dominio.com/api/paypal/webhook`. Ejecuta todas las migraciones de `supabase/migrations` y verifica que `GET /api/health` responda `200` antes de publicar.
 

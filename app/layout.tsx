@@ -5,6 +5,8 @@ import { Footer } from "@/components/footer";
 import { siteConfig } from "@/lib/site-config";
 import { CartProvider } from "@/components/cart-provider";
 import { CookieConsent } from "@/components/cookie-consent";
+import { AuthRecoveryRedirect } from "@/components/auth-recovery-redirect";
+import MetaPixel from "@/components/MetaPixel";
 
 export const metadata: Metadata = {
   title: siteConfig.meta.title,
@@ -15,7 +17,7 @@ export const metadata: Metadata = {
     description: siteConfig.meta.description,
     url: siteConfig.siteUrl,
     siteName: "TIMESHOP",
-    locale: "en_US",
+    locale: "es_MX",
     type: "website",
   },
   twitter: {
@@ -30,9 +32,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es-MX" suppressHydrationWarning>
       <body>
+        <MetaPixel />
         <CartProvider>
+          <AuthRecoveryRedirect />
           <div className="shell">
             <Header />
             <main className="page-wrap">{children}</main>

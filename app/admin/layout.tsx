@@ -32,7 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!ready) {
-    return <div className="container-shell" style={{ padding: "48px 0" }}>Cargando panel...</div>;
+    return <div className="container-shell" style={{ padding: "48px 0" }}>正在加载后台...</div>;
   }
 
   if (!isAuthenticated) {
@@ -43,16 +43,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="container-shell" style={{ padding: "24px 0 40px" }}>
       <div className="admin-shell">
         <aside className="admin-sidebar">
-          <div className="admin-brand">TIMESHOP Admin</div>
+          <div className="admin-brand">TIMESHOP 管理后台</div>
           <nav className="admin-nav">
-            <Link href="/admin">Dashboard</Link>
-            <Link href="/admin/products">Productos</Link>
-            <Link href="/admin/orders">Pedidos</Link>
-            <Link href="/admin/customers">Clientes</Link>
-            <Link href="/admin/returns">Devoluciones</Link>
-            <Link href="/admin/refunds">Refunds</Link>
-            <Link href="/admin/messages">Mensajes</Link>
-            <Link href="/admin/audit">Actividad</Link>
+            <Link href="/admin">数据概览</Link>
+            <Link href="/admin/products">商品管理</Link>
+            <Link href="/admin/coupons">优惠码</Link>
+            <Link href="/admin/orders">订单管理</Link>
+            <Link href="/admin/customers">客户管理</Link>
+            <Link href="/admin/returns">退货管理</Link>
+            <Link href="/admin/refunds">退款管理</Link>
+            <Link href="/admin/messages">客户消息</Link>
+            <Link href="/admin/audit">操作记录</Link>
           </nav>
           <button
             className="ghost-button"
@@ -62,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }}
             style={{ width: "100%", marginTop: "16px" }}
           >
-            Cerrar sesión
+            退出登录
           </button>
         </aside>
         <div className="admin-content">{children}</div>

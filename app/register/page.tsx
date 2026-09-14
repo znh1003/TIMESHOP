@@ -7,10 +7,10 @@ import { useState, type FormEvent } from "react";
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState({
-    name: "Ana",
-    lastName: "García",
-    email: "ana@email.com",
-    password: "********",
+    name: "",
+    lastName: "",
+    email: "",
+    password: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,18 +31,19 @@ export default function RegisterPage() {
         }),
       });
 
-      const data = (await response.json()) as { ok?: boolean; error?: string; user?: { email?: string; name?: string } };
+      const data = (await response.json()) as { ok?: boolean; error?: string; requiresEmailConfirmation?: boolean };
 
       if (!response.ok || !data.ok) {
         setError(data.error ?? "No pudimos crear la cuenta.");
         return;
       }
 
-      if (data.user) {
-        window.localStorage.setItem("timeshop_user", JSON.stringify(data.user));
+      if (data.requiresEmailConfirmation) {
+        router.push(`/login?notice=${encodeURIComponent("Revisa tu correo para confirmar tu cuenta.")}`);
+        return;
       }
 
-      router.push("/");
+      router.push("/account");
       router.refresh();
     } catch {
       setError("No pudimos crear la cuenta. Inténtalo más tarde.");

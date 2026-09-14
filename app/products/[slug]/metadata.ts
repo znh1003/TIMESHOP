@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { getProductBySlug, products } from "@/data/products";
+import { getCatalogProducts } from "@/lib/catalog";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = (await getCatalogProducts()).find((item) => item.slug === slug);
   if (!product) {
     return {
       title: "Producto no encontrado | TIMESHOP",
@@ -25,5 +25,5 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export async function generateStaticParams() {
-  return products.map((product) => ({ slug: product.slug }));
+  return (await getCatalogProducts()).map((product) => ({ slug: product.slug }));
 }

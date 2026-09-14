@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const limited = await rateLimit(request, "forgot-password", 3, 60 * 60_000);
   if (limited) return limited;
   try {
-    const body = await request.json() as { email?: string };
+    const body = await request.json() as { email?: string; next?: string };
     if (!body.email) {
       return NextResponse.json({ error: "Email es requerido." }, { status: 400 });
     }
@@ -18,11 +18,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "La autenticación no está configurada." }, { status: 503 });
     }
 
+    const next = body.next === "/admin/set-password" ? body.next : "/account/set-password";
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
-      redirectTo: `${siteUrl}/auth/callback?next=/account/set-password`,
+      redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}`,
     });
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) return NextResponse.json({ error: "No se pudo enviar el enlace. Verifica el correo e inténtalo de nuevo." }, { status: 400 });
 
     return NextResponse.json({
       ok: true,
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "No se pudo enviar el enlace." },
+      { ok: false, error: "No se pudo enviar el enlace." },
       { status: 500 },
     );
   }

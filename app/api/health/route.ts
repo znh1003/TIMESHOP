@@ -20,6 +20,7 @@ export async function GET() {
     ok,
     app: "TIMESHOP",
     status: ok ? "ready" : "unavailable",
+    hasMissingConfiguration: !environment.ok,
     locale: "es-MX",
     services: {
       database: databaseReady ? "ready" : "unavailable",
@@ -28,6 +29,6 @@ export async function GET() {
       rateLimit: globalRateLimitConfigured ? "global" : "local_fallback",
       errorMonitoring: errorMonitoringConfigured ? "configured" : "not_configured",
     },
-    missingConfiguration: environment.ok ? [] : environment.missing,
+    missingConfiguration: process.env.NODE_ENV === "production" || environment.ok ? [] : environment.missing,
   }, { status: ok ? 200 : 503 });
 }

@@ -2,45 +2,51 @@
 
 import Link from "next/link";
 import { useCart } from "@/components/cart-provider";
-import { formatPrice, products } from "@/data/products";
+import { formatPrice, type Product } from "@/data/products";
 import { useEffect, useState } from "react";
 
 const desktopNav = [
-  { href: "/shop", label: "Shop" },
-  { href: "/shop", label: "Collections" },
-  { href: "/shop", label: "New Arrivals" },
-  { href: "/about", label: "About" },
+  { href: "/shop", label: "Tienda" },
+  { href: "/shop", label: "Colecciones" },
+  { href: "/shop", label: "Novedades" },
+  { href: "/about", label: "Nosotros" },
 ];
 
 const mobileSections = [
   {
-    title: "SHOP",
+    title: "TIENDA",
     links: [
-      { href: "/shop", label: "All Products" },
-      { href: "/shop", label: "Collections" },
-      { href: "/shop", label: "New Arrivals" },
-      { href: "/shop", label: "Best Sellers" },
+      { href: "/", label: "Inicio" },
+      { href: "/shop", label: "Todos los productos" },
+      { href: "/order-lookup", label: "Consultar pedido" },
     ],
   },
   {
-    title: "ABOUT",
+    title: "NOSOTROS",
     links: [
-      { href: "/about", label: "Our Story" },
-      { href: "/contact", label: "Contact" },
+      { href: "/about", label: "Nuestra historia" },
+      { href: "/contact", label: "Contacto" },
     ],
   },
   {
-    title: "HELP",
+    title: "AYUDA",
     links: [
-      { href: "/shipping", label: "Shipping" },
-      { href: "/returns", label: "Returns" },
-      { href: "/returns-policy", label: "FAQ" },
+      { href: "/shipping", label: "Envíos" },
+      { href: "/returns", label: "Devoluciones" },
+      { href: "/returns-policy", label: "Preguntas frecuentes" },
+    ],
+  },
+  {
+    title: "CUENTA",
+    links: [
+      { href: "/account/favorites", label: "Favoritos" },
+      { href: "/login", label: "Iniciar sesión" },
     ],
   },
 ];
 
 export function Header() {
-  const { items, itemCount, subtotal, updateQuantity, removeFromCart } = useCart();
+  const { items, itemCount, subtotal, shipping, discount, couponCode, total, applyCoupon, clearCoupon, updateQuantity, removeFromCart } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -48,10 +54,9 @@ export function Header() {
   const [searchTerm, setSearchTerm] = useState("");
   const [addedProduct, setAddedProduct] = useState<string | null>(null);
   const [coupon, setCoupon] = useState("");
-  const [discount, setDiscount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
   const searchResults = products.filter((product) => `${product.name} ${product.category} ${product.shortDescription}`.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 6);
-  const freeShippingThreshold = 2500;
-  const drawerShipping = subtotal >= freeShippingThreshold ? 0 : subtotal > 0 ? 299 : 0;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 12);
@@ -60,6 +65,26 @@ export function Header() {
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    fetch("/api/products").then(async (response) => {
+      const data = await response.json() as { items?: Product[] };
+      if (response.ok && data.items) setProducts(data.items);
+    }).catch(() => undefined);
+  }, []);
+
+  const redeemCoupon = async () => {
+    const code = coupon.trim();
+    if (!code) return;
+    const response = await fetch("/api/coupons/validate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, subtotal }) });
+    const data = await response.json() as { code?: string; discount?: number; error?: string };
+    if (!response.ok || !data.code || data.discount === undefined) {
+      setCouponMessage(data.error ?? "No se pudo aplicar el cupón.");
+      return;
+    }
+    applyCoupon(data.code, data.discount);
+    setCouponMessage("Cupón aplicado.");
+  };
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen || cartOpen || searchOpen ? "hidden" : "";
@@ -81,20 +106,21 @@ export function Header() {
   }, []);
 
   return (
-    <header className={`site-header ${scrolled ? "is-scrolled" : ""}`}>
+    <>
+      <header className={`site-header ${scrolled ? "is-scrolled" : ""}`}>
       <div className="announcement-bar" aria-label="Store announcement">
         <div className="announcement-track">
           <span>ENVÍO A TODO MÉXICO</span>
           <span>·</span>
           <span>PAGO SEGURO</span>
           <span>·</span>
-          <span>DEVOLUCIONES FÁCILES</span>
+          <span>POLÍTICAS TRANSPARENTES</span>
           <span>·</span>
           <span>ENVÍO A TODO MÉXICO</span>
           <span>·</span>
           <span>PAGO SEGURO</span>
           <span>·</span>
-          <span>DEVOLUCIONES FÁCILES</span>
+          <span>POLÍTICAS TRANSPARENTES</span>
         </div>
       </div>
 
@@ -125,24 +151,29 @@ export function Header() {
 
           <div className="header-actions">
             <button type="button" className="header-link search-link" aria-label="Search" onClick={() => setSearchOpen(true)}>
-              Search
+              Buscar
             </button>
             <Link href="/login" className="header-link" aria-label="Account">
-              Account
+              Cuenta
             </Link>
             <Link href="/account/favorites" className="header-link" aria-label="Wishlist">
-              Wishlist
+              Favoritos
             </Link>
             <button type="button" className="header-link cart-link" aria-label="Bag" onClick={() => setCartOpen(true)}>
-              Bag
+              Carrito
               {itemCount > 0 ? <span className="cart-badge">{itemCount}</span> : null}
             </button>
           </div>
 
           <div className="mobile-header-actions">
-            <Link className="mobile-wishlist-link" href="/account/favorites" aria-label="Wishlist">♡</Link>
-            <button type="button" className="mobile-bag-button" onClick={() => setCartOpen(true)} aria-label={`Bag${itemCount > 0 ? `, ${itemCount} items` : ""}`}>
-              <span>Bag</span>{itemCount > 0 ? <span className="cart-badge">{itemCount}</span> : null}
+            <button type="button" className="mobile-search-button" onClick={() => setSearchOpen(true)} aria-label="Buscar">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="m16 16 4 4" />
+              </svg>
+            </button>
+            <button type="button" className="mobile-bag-button" onClick={() => setCartOpen(true)} aria-label={`Carrito${itemCount > 0 ? `, ${itemCount} artículos` : ""}`}>
+              <span>Carrito</span>{itemCount > 0 ? <span className="cart-badge">{itemCount}</span> : null}
             </button>
           </div>
         </div>
@@ -155,7 +186,7 @@ export function Header() {
 
       <aside className={`mobile-drawer ${mobileOpen ? "is-open" : ""}`} aria-label="Mobile menu">
         <div className="mobile-drawer-header">
-          <span>Menu</span>
+          <span>Menú</span>
           <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close menu">
             ×
           </button>
@@ -177,37 +208,38 @@ export function Header() {
 
       <div className={`cart-drawer-backdrop ${cartOpen ? "is-open" : ""}`} onClick={() => setCartOpen(false)} />
       <aside className={`cart-drawer ${cartOpen ? "is-open" : ""}`} aria-label="Shopping bag">
-        {addedProduct ? <div className="added-confirmation">Added to your bag <span>✓</span><small>{addedProduct}</small></div> : null}
+        {addedProduct ? <div className="added-confirmation">Añadido a tu carrito <span>✓</span><small>{addedProduct}</small></div> : null}
         <div className="cart-drawer-header">
-          <div><span className="eyebrow subdued">Your selection</span><h2>Bag ({itemCount})</h2></div>
+          <div><span className="eyebrow subdued">Tu selección</span><h2>Carrito ({itemCount})</h2></div>
           <button type="button" onClick={() => setCartOpen(false)} aria-label="Close bag">×</button>
         </div>
         {items.length === 0 ? (
-          <div className="cart-drawer-empty"><p>Your bag is currently empty.</p><Link href="/shop" className="primary-button" onClick={() => setCartOpen(false)}>Explore collection</Link></div>
+          <div className="cart-drawer-empty"><p>Tu carrito está vacío.</p><Link href="/shop" className="primary-button" onClick={() => setCartOpen(false)}>Explorar colección</Link></div>
         ) : (
           <>
             <div className="cart-drawer-items">
               {items.map((item) => (
-                <div key={item.id} className="cart-drawer-item">
+                <div key={`${item.id}-${item.color ?? "default"}`} className="cart-drawer-item">
                   <img src={item.image} alt={item.name} />
-                  <div><strong>{item.name}</strong><span>{formatPrice(item.price)}</span><div className="drawer-quantity"><button type="button" onClick={() => updateQuantity(item.id, -1)} aria-label="Decrease quantity">−</button><span>{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.id, 1)} aria-label="Increase quantity">+</button><button type="button" onClick={() => removeFromCart(item.id)} aria-label={`Remove ${item.name}`}>Remove</button></div></div>
+                  <div><strong>{item.name}</strong><span>{formatPrice(item.price)}</span>{item.color ? <span>Color: {item.color}</span> : null}<div className="drawer-quantity"><button type="button" onClick={() => updateQuantity(item.id, item.color, -1)} aria-label="Reducir cantidad">−</button><span>{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.id, item.color, 1)} aria-label="Aumentar cantidad">+</button><button type="button" onClick={() => removeFromCart(item.id, item.color)} aria-label={`Eliminar ${item.name}`}>Eliminar</button></div></div>
                 </div>
               ))}
             </div>
-            <div className="cart-drawer-summary"><div><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div><div className="drawer-shipping-progress"><span>{subtotal >= freeShippingThreshold ? "You unlocked FREE SHIPPING" : `Spend ${formatPrice(freeShippingThreshold - subtotal)} more for free shipping`}</span><i><b style={{ width: `${Math.min(100, subtotal / freeShippingThreshold * 100)}%` }} /></i></div><div className="drawer-coupon"><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Promo code" /><button type="button" onClick={() => setDiscount(coupon.trim().toUpperCase() === "TIMESHOP10" ? Math.round(subtotal * 0.1) : 0)}>Apply</button></div>{discount > 0 ? <div><span>Discount</span><strong>-{formatPrice(discount)}</strong></div> : null}<div><span>Shipping</span><strong>{drawerShipping ? formatPrice(drawerShipping) : "FREE"}</strong></div><div><span>Total</span><strong>{formatPrice(subtotal + drawerShipping - discount)}</strong></div><Link href="/checkout" className="primary-button" onClick={() => setCartOpen(false)}>Checkout</Link><Link href="/shop" className="ghost-button" onClick={() => setCartOpen(false)}>Continue shopping</Link></div>
+            <div className="cart-drawer-summary"><div><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div><div className="drawer-coupon"><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Código promocional" /><button type="button" onClick={() => void redeemCoupon()}>Aplicar</button></div>{couponMessage ? <small className="muted">{couponMessage}</small> : null}{discount > 0 ? <div><span>Descuento {couponCode ? `(${couponCode})` : ""}</span><strong>-{formatPrice(discount)}</strong><button type="button" onClick={clearCoupon} aria-label="Quitar cupón">×</button></div> : null}<div><span>Envío</span><strong>{shipping ? formatPrice(shipping) : "GRATIS"}</strong></div><div><span>Total</span><strong>{formatPrice(total)}</strong></div><Link href="/checkout" className="primary-button" onClick={() => setCartOpen(false)}>Pagar</Link><Link href="/shop" className="ghost-button" onClick={() => setCartOpen(false)}>Seguir comprando</Link></div>
           </>
         )}
       </aside>
 
+      </header>
       <div className={`search-overlay ${searchOpen ? "is-open" : ""}`} role="dialog" aria-modal="true" aria-label="Search products">
         <div className="search-overlay-inner">
-          <div className="search-overlay-top"><span>Search</span><button type="button" onClick={() => setSearchOpen(false)} aria-label="Close search">×</button></div>
-          <input autoFocus={searchOpen} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search products..." />
+          <div className="search-overlay-top"><span>Buscar</span><button type="button" onClick={() => setSearchOpen(false)} aria-label="Cerrar búsqueda">×</button></div>
+          <input autoFocus={searchOpen} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar productos..." />
           <div className="search-results">
-            {!searchTerm ? <p>Search products by name or category.</p> : searchResults.length === 0 ? <p>No products found.</p> : searchResults.map((product) => <Link key={product.id} href={`/products/${product.slug}`} onClick={() => setSearchOpen(false)}><img src={product.image} alt="" /><span><strong>{product.name}</strong><small>{formatPrice(product.price)}</small></span></Link>)}
+            {!searchTerm ? <p>Busca por nombre o categoría.</p> : searchResults.length === 0 ? <p>No encontramos productos.</p> : searchResults.map((product) => <Link key={product.id} href={`/products/${product.slug}`} onClick={() => setSearchOpen(false)}><img src={product.image} alt="" /><span><strong>{product.name}</strong><small>{formatPrice(product.price)}</small></span></Link>)}
           </div>
         </div>
       </div>
-    </header>
+    </>
   );
 }

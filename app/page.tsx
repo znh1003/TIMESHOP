@@ -1,64 +1,53 @@
 import Link from "next/link";
-import { categories, products } from "@/data/products";
+import { getCatalogCategories, getCatalogProducts } from "@/lib/catalog";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { ProductCard } from "@/components/product-card";
 import { TrustSignals } from "@/components/trust-signals";
+import { TimeAwareHero } from "@/components/time-aware-hero";
+import { NewsletterSignup } from "@/components/newsletter-signup";
 
-const featured = products.filter((product) => product.featured).slice(0, 4);
-const bestSellers = products.slice(0, 3);
-const collections = categories.slice(0, 4);
+export const dynamic = "force-dynamic";
+
 const trustPoints = [
-  { title: "Secure checkout", text: "Protected payment experience with trusted global methods." },
-  { title: "Worldwide shipping", text: "Fast, careful delivery for customers across regions." },
-  { title: "Thoughtful returns", text: "Clear policies and responsive support before and after purchase." },
-  { title: "Private concierge", text: "A dedicated service layer tailored to every order and inquiry." },
+  { title: "Pago seguro", text: "Procesado mediante plataformas de pago confiables." },
+  { title: "Envío con seguimiento", text: "Consulta el estado de tu pedido." },
+  { title: "Atención personalizada", text: "Nuestro equipo está disponible para ayudarte." },
+  { title: "Políticas transparentes", text: "Consulta nuestras políticas antes de comprar." },
 ];
 
-const brandValues = [
-  { title: "Curated selection", text: "Every piece is chosen to feel intentional, useful, and beautiful." },
-  { title: "Modern essentials", text: "Built for refined homes, routines, and elevated daily rituals." },
-  { title: "Long-term quality", text: "Premium finishes, durable materials, and timeless design language." },
+const shippingHighlights = [
+  { title: "🇲🇽 Envíos a todo México", text: "Cobertura nacional para que recibas tu pedido donde estés." },
+  { title: "📦 Entrega estimada", text: "Los tiempos pueden variar según el destino y la paquetería." },
+  { title: "🔒 Compra segura y pagos protegidos", text: "Tus datos y tu pago están protegidos durante toda la compra." },
+  { title: "💬 Atención al cliente", text: "Estamos aquí para ayudarte." },
 ];
 
 const faqItems = [
-  { q: "Do you ship internationally?", a: "Yes. We deliver to Mexico and select international destinations with tracked shipping and secure packaging." },
-  { q: "What is your return policy?", a: "Returns are available within the policy window for eligible items in original condition. Our support team guides each request." },
-  { q: "Are your products designed for daily use?", a: "Absolutely. We focus on durable materials, elevated finishes, and thoughtful details that last beyond a season." },
-  { q: "How quickly do orders ship?", a: "Most orders are processed within 48 hours, with dispatch updates sent automatically after confirmation." },
+  { q: "¿Hacen envíos a todo México?", a: "Sí. Enviamos a todo México con seguimiento una vez que tu pedido sale de preparación." },
+  { q: "¿Cuál es la política de devoluciones?", a: "Cada solicitud se revisa conforme a las condiciones del producto, el motivo de la compra y la legislación aplicable." },
+  { q: "¿Los productos son para uso diario?", a: "Sí. Seleccionamos materiales resistentes y acabados pensados para acompañarte todos los días." },
+  { q: "¿Cuánto tarda la entrega?", a: "Los tiempos de entrega son estimados y pueden variar según la preparación, el destino, la paquetería y las aduanas." },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const products = await getCatalogProducts();
+  const collections = (await getCatalogCategories()).slice(0, 4);
+  const featured = products.filter((product) => product.featured).slice(0, 4);
+  const bestSellers = products.slice(0, 3);
   return (
     <>
-      <section className="hero">
-        <img className="hero-image" src="https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=2200&q=85" alt="Premium interior scene" />
-        <div className="hero-overlay" />
-        <div className="container-shell hero-content">
-          <div className="hero-copy">
-            <span className="eyebrow">TIMESHOP / 2026 EDITION</span>
-            <h1>Diseño premium <span>para vivir diferente.</span></h1>
-            <p>Descubre piezas cuidadosamente seleccionadas para transformar tus espacios y tu día a día.</p>
-            <div className="hero-actions">
-              <Link href="/shop" className="primary-button">Explorar colección <span aria-hidden="true">↗</span></Link>
-              <Link href="#featured-collection" className="secondary-button">Ver más <span aria-hidden="true">↓</span></Link>
-            </div>
-          </div>
-          <a href="#featured-collection" className="scroll-indicator" aria-label="Scroll to collection">
-            <span>Scroll to discover</span><span aria-hidden="true">↓</span>
-          </a>
-        </div>
-      </section>
+      <TimeAwareHero />
 
       <section className="section editorial-strip">
         <div className="container-shell">
           <div className="editorial-grid">
             <div className="editorial-intro">
               <span className="eyebrow subdued">TIMESHOP</span>
-              <h2>Minimal design. Premium value. Timeless presence.</h2>
+              <h2>Diseño minimalista. Valor premium. Presencia atemporal.</h2>
             </div>
             <div className="editorial-copy">
               <p>
-                We design for people who appreciate restraint, detail, and the confidence that comes with living beautifully.
+                Diseñamos para quienes valoran la sobriedad, los detalles y la confianza de vivir rodeados de belleza.
               </p>
             </div>
           </div>
@@ -69,21 +58,17 @@ export default function HomePage() {
         <div className="container-shell">
           <div className="section-head">
             <div>
-              <h2 className="section-title">Featured collection</h2>
+              <h2 className="section-title">Colecciones</h2>
             </div>
             <Link href="/shop" className="ghost-button">
-              View all
+              Ver todo
             </Link>
           </div>
 
-          <div className="category-grid">
+          <div className="category-button-grid" aria-label="Colecciones">
             {collections.map((category) => (
-              <Link key={category.slug} href={`/category/${category.slug}`} className="category-card">
-                <img src={category.image} alt={category.name} />
-                <div className="category-card-body">
-                  <h3>{category.name}</h3>
-                  <p>{category.label}</p>
-                </div>
+              <Link key={category.slug} href={`/category/${category.slug}`} className="category-button">
+                {category.name}
               </Link>
             ))}
           </div>
@@ -92,6 +77,7 @@ export default function HomePage() {
 
       <section className="section">
         <div className="container-shell">
+          <div className="section-head"><h2 className="section-title">Compra con confianza</h2></div>
           <TrustSignals />
         </div>
       </section>
@@ -100,10 +86,10 @@ export default function HomePage() {
         <div className="container-shell">
           <div className="section-head">
             <div>
-              <h2 className="section-title">Featured products</h2>
+              <h2 className="section-title">Productos destacados</h2>
             </div>
             <Link href="/shop" className="ghost-button">
-              View all
+              Ver todo
             </Link>
           </div>
 
@@ -116,19 +102,12 @@ export default function HomePage() {
       </section>
 
       <section className="section feature-story">
-        <div className="container-shell feature-story-inner">
-          <div className="feature-story-image">
-            <img
-              src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
-              alt="Luxury lifestyle composition"
-            />
-          </div>
-
+        <div className="container-shell feature-story-inner feature-story-inner--shipping">
           <div className="feature-story-copy">
-            <span className="eyebrow subdued">Brand values</span>
-            <h2>Designed to feel exceptional in every detail.</h2>
+            <span className="eyebrow subdued">Información de envío</span>
+            <h2>Tu pedido, claro y protegido desde la compra hasta la entrega.</h2>
             <div className="story-grid compact-grid">
-              {brandValues.map((item) => (
+              {shippingHighlights.map((item) => (
                 <div key={item.title} className="story-card">
                   <h3>{item.title}</h3>
                   <p>{item.text}</p>
@@ -142,13 +121,13 @@ export default function HomePage() {
       <section className="section lifestyle-section">
         <div className="container-shell lifestyle-layout">
           <div className="lifestyle-copy">
-            <span className="eyebrow subdued">Lifestyle</span>
-            <h2>Elevated essentials for calmer, more intentional living.</h2>
+            <span className="eyebrow subdued">Estilo de vida</span>
+            <h2>Esenciales premium para vivir cada día con más intención.</h2>
             <p>
-              We curate the pieces that help shape better rituals — warm light, smoother routines, and objects that quietly improve the way a room feels.
+              Seleccionamos piezas que mejoran tus rituales: luz cálida, rutinas más sencillas y objetos que transforman discretamente cada espacio.
             </p>
             <Link href="/about" className="secondary-button">
-              Discover our story
+              Conoce nuestra historia
             </Link>
           </div>
 
@@ -168,7 +147,7 @@ export default function HomePage() {
               <h2 className="section-title">Best sellers</h2>
             </div>
             <Link href="/shop" className="ghost-button">
-              Shop now
+              Comprar ahora
             </Link>
           </div>
 
@@ -183,36 +162,20 @@ export default function HomePage() {
       <section className="section story-band">
         <div className="container-shell story-band-inner">
           <div>
-            <span className="eyebrow subdued">Brand story</span>
-            <h2>Thoughtful objects, quietly powerful.</h2>
+            <span className="eyebrow subdued">Historia de TIMESHOP</span>
+            <h2>Objetos pensados, con una fuerza silenciosa.</h2>
           </div>
           <p>
-            TIMESHOP was built around the idea that premium living is not loud — it is intentional. We select objects that add clarity, warmth, and confidence to the spaces we inhabit every day.
+            TIMESHOP nació de una idea: vivir con calidad no significa hacerlo en voz alta, sino con intención. Seleccionamos objetos que aportan claridad, calidez y confianza a los espacios de cada día.
           </p>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="container-shell">
-          <div className="section-head">
-            <div>
-              <h2 className="section-title">Reviews</h2>
-            </div>
-          </div>
-
-          <div className="reviews-empty">
-            <div className="stars">★★★★★</div>
-            <h3>Customer reviews are coming soon.</h3>
-            <p>We are collecting verified purchase feedback and will publish it here once it is available.</p>
-          </div>
         </div>
       </section>
 
       <section className="section">
         <div className="container-shell faq-shell">
           <div className="faq-copy">
-            <span className="eyebrow subdued">FAQ</span>
-            <h2>Everything you need to shop with confidence.</h2>
+            <span className="eyebrow subdued">Preguntas frecuentes</span>
+            <h2>Todo lo que necesitas para comprar con confianza.</h2>
           </div>
 
           <div className="faq-list">
@@ -230,7 +193,7 @@ export default function HomePage() {
         <div className="container-shell">
           <div className="section-head">
             <div>
-              <h2 className="section-title">Trusted purchase experience</h2>
+              <h2 className="section-title">Compra segura y acompañada</h2>
             </div>
           </div>
 
@@ -242,11 +205,11 @@ export default function HomePage() {
         <div className="container-shell">
           <div className="cta-bar">
             <div>
-              <span className="eyebrow subdued">The quiet luxury standard</span>
-              <h3>Elevate the way you live.</h3>
+              <span className="eyebrow subdued">El estándar TIMESHOP</span>
+              <h3>Eleva tu forma de vivir.</h3>
             </div>
             <Link href="/shop" className="primary-button">
-              Discover the collection
+              Descubrir la colección
             </Link>
           </div>
         </div>
@@ -255,16 +218,11 @@ export default function HomePage() {
       <section className="section newsletter-section">
         <div className="container-shell newsletter-box">
           <div>
-            <span className="eyebrow subdued">Newsletter</span>
-            <h2>Receive curated releases and early access.</h2>
+            <span className="eyebrow subdued">Boletín</span>
+            <h2>Recibe novedades seleccionadas y acceso anticipado.</h2>
           </div>
 
-          <form className="newsletter-form">
-            <input type="email" placeholder="Your email address" aria-label="Email address" />
-            <button type="submit" className="primary-button">
-              Join now
-            </button>
-          </form>
+          <NewsletterSignup />
         </div>
       </section>
 

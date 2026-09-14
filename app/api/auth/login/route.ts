@@ -28,14 +28,14 @@ export async function POST(request: Request) {
       },
     });
     const { data, error } = await supabase.auth.signInWithPassword({ email: body.email, password: body.password });
-    if (error || !data.user) return NextResponse.json({ error: error?.message ?? "No pudimos iniciar sesión." }, { status: 401 });
+    if (error || !data.user) return NextResponse.json({ error: "El email o la contraseña no son correctos." }, { status: 401 });
 
     const response = NextResponse.json({ ok: true, user: { email: data.user.email, name: data.user.user_metadata.full_name ?? null } });
     cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
     return response;
   } catch (error) {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "No se pudo iniciar sesión." },
+      { ok: false, error: "No se pudo iniciar sesión." },
       { status: 500 },
     );
   }

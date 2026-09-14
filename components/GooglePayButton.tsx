@@ -24,7 +24,7 @@ const baseRequest = {
 };
 
 export default function GooglePayButton({ onSuccess, onError, checkoutData, disabled }: GooglePayButtonProps) {
-  const { items, subtotal, shipping, total } = useCart();
+  const { items, subtotal, shipping, total, couponCode } = useCart();
   const [isEligible, setIsEligible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentsClient, setPaymentsClient] = useState<any>(null);
@@ -76,9 +76,10 @@ export default function GooglePayButton({ onSuccess, onError, checkoutData, disa
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            items: items.map((item) => ({ id: item.id, quantity: item.quantity })),
+            items: items.map((item) => ({ id: item.id, color: item.color, quantity: item.quantity })),
             currency: "MXN",
             orderId,
+            couponCode,
             ...checkoutData,
           }),
         });
@@ -130,7 +131,7 @@ export default function GooglePayButton({ onSuccess, onError, checkoutData, disa
         };
       }
     },
-    [checkoutData, items, onSuccess, onError],
+    [checkoutData, couponCode, items, onSuccess, onError],
   );
 
   const handleClick = useCallback(async () => {

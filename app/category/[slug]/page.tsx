@@ -1,13 +1,13 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { use } from "react";
-import { categories, formatPrice, products } from "@/data/products";
+import { ProductCard } from "@/components/product-card";
+import { getCatalogCategories, getCatalogProducts } from "@/lib/catalog";
 
-export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
-  const resolvedParams = use(params);
-  const category = categories.find((item) => item.slug === resolvedParams.slug);
+export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params;
+  const category = (await getCatalogCategories()).find((item) => item.slug === resolvedParams.slug);
   if (!category) notFound();
 
+  const products = await getCatalogProducts();
   const categoryProducts = products.filter((product) => product.category === category.slug);
 
   return (
@@ -17,9 +17,7 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
         <p>{category.label}</p>
       </div>
 
-      <div className="category-card" style={{ marginBottom: 20 }}>
-        <img src={category.image} alt={category.name} />
-      </div>
+      {category.image ? <div className="category-card" style={{ marginBottom: 20 }}><img src={category.image} alt={category.name} /></div> : null}
 
       <div className="filter-bar" aria-label="Filtros por categoría">
         <span className="filter-chip">Precio</span>
@@ -29,23 +27,7 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
 
       <div className="product-grid">
         {categoryProducts.map((product) => (
-          <article key={product.id} className="product-card">
-            <img src={product.image} alt={product.name} />
-            <div className="product-body">
-              {product.badge ? <span className="badge">{product.badge}</span> : null}
-              <h3>{product.name}</h3>
-              <p>{product.shortDescription}</p>
-              <div className="price-row">
-                <div>
-                  <div className="price">{formatPrice(product.price)}</div>
-                  {product.oldPrice ? <span className="old-price">{formatPrice(product.oldPrice)}</span> : null}
-                </div>
-                <Link href={`/products/${product.slug}`} className="primary-button small-button">
-                  Ver
-                </Link>
-              </div>
-            </div>
-          </article>
+          <ProductCard key={product.id} product={product} />
         ))}
       </div>
     </div>

@@ -36,6 +36,10 @@ function extractLabelledValue(text: string, labels: string[]) {
   return match?.[1]?.trim() ?? "";
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function parseAddressText(text: string): AddressFields {
   const normalized = text.replace(/\r/g, "").replace(/，/g, ",");
   const lines = normalized.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -46,8 +50,13 @@ export function parseAddressText(text: string): AddressFields {
   const name = extractLabelledValue(normalized, ["nombre", "destinatario", "contacto"])
     || lines.find((line) => !line.match(/\d|@|calle|colonia|estado|ciudad|tel|phone/i))
     || "";
-  const city = extractLabelledValue(normalized, ["ciudad", "municipio", "alcald[ií]a"]);
-  const neighborhood = extractLabelledValue(normalized, ["colonia", "barrio", "fraccionamiento"]);
+  const cityFromStateLine = state
+    ? lines.find((line) => new RegExp(`^(.+?),\\s*${escapeRegExp(state)}\\s*$`, "i").test(line))?.replace(new RegExp(`,\\s*${escapeRegExp(state)}\\s*$`, "i"), "").trim() ?? ""
+    : "";
+  const city = extractLabelledValue(normalized, ["ciudad", "municipio", "alcald[ií]a"]) || cityFromStateLine;
+  const neighborhoodLine = lines.find((line) => /^(?:colonia|col\.?|barrio|fraccionamiento)\s+/i.test(line)) ?? "";
+  const neighborhood = extractLabelledValue(normalized, ["colonia", "barrio", "fraccionamiento"])
+    || neighborhoodLine.replace(/^(?:colonia|col\.?|barrio|fraccionamiento)\s+/i, "").trim();
   const labelledStreet = extractLabelledValue(normalized, ["direcci[oó]n", "calle", "domicilio"]);
   const addressLine = labelledStreet || lines.find((line) => /(?:calle|avenida|av\.?|blvd\.?|boulevard|carretera|c\.\s)/i.test(line)) || "";
   const number = extractLabelledValue(normalized, ["n[uú]mero", "no\.?"]) || addressLine.match(/(?:#|no\.?\s*)?(\d+[\w-]*)\s*$/i)?.[1] || "";

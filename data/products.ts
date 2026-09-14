@@ -11,7 +11,7 @@ export type Product = {
   databaseId?: string;
   slug: string;
   name: string;
-  category: "hogar" | "mascotas" | "auto" | "outdoor" | "regalos";
+  category: string;
   price: number;
   oldPrice?: number;
   badge?: string;
@@ -22,9 +22,13 @@ export type Product = {
   colors: string[];
   details: string[];
   image: string;
+  colorImages?: Record<string, string>;
+  colorPrices?: Record<string, number>;
   gallery: string[];
+  detailImages?: string[];
   stock: string;
   inventoryQuantity?: number;
+  shippingFee?: number;
   featured?: boolean;
   limited?: boolean;
 };
@@ -76,7 +80,7 @@ export const products: Product[] = [
   {
     id: 1,
     slug: "lampara-de-mesa-premium",
-    name: "Designer Table Lamp",
+    name: "Lámpara de Mesa de Diseño",
     category: "hogar",
     price: 1999,
     oldPrice: 2499,
@@ -106,7 +110,7 @@ export const products: Product[] = [
   {
     id: 2,
     slug: "lampara-de-piso-ambiental",
-    name: "Premium Ambient Floor Lamp",
+    name: "Lámpara de Pie Ambiental Premium",
     category: "hogar",
     price: 3499,
     shortDescription: "Iluminación escultórica para dormitorios, salas y reading corners.",
@@ -133,7 +137,7 @@ export const products: Product[] = [
   {
     id: 3,
     slug: "deco-pared-artistica",
-    name: "Artistic Wall Decor",
+    name: "Decoración Artística de Pared",
     category: "hogar",
     price: 2499,
     shortDescription: "Pieza decorativa con carácter y profundidad visual.",
@@ -159,7 +163,7 @@ export const products: Product[] = [
   {
     id: 4,
     slug: "deco-escultural-home",
-    name: "Sculptural Home Decor",
+    name: "Decoración Escultural para el Hogar",
     category: "hogar",
     price: 4199,
     shortDescription: "Escultura moderna para dar carácter a cualquier ambiente.",
@@ -186,12 +190,12 @@ export const products: Product[] = [
   {
     id: 5,
     slug: "sofa-premium-para-perro",
-    name: "Premium Dog Sofa",
+    name: "Sofá Premium para Perro",
     category: "mascotas",
     price: 2899,
     shortDescription: "Comodidad premium para tus momentos de descanso compartidos.",
     description:
-      "Sofa diseñado para dogs con apoyo ergonómico, materiales suaves y un perfil elegante que se integra con el hogar.",
+      "Sofá diseñado para perros con apoyo ergonómico, materiales suaves y un perfil elegante que se integra con el hogar.",
     materials: ["Tela de alto rendimiento", "Espuma de memoria", "Base reforzada"],
     dimensions: "100 cm × 75 cm × 52 cm",
     colors: ["Oat", "Marrón", "Grafito"],
@@ -212,7 +216,7 @@ export const products: Product[] = [
   {
     id: 6,
     slug: "mueble-moderno-gato",
-    name: "Modern Cat Furniture",
+    name: "Mueble Moderno para Gato",
     category: "mascotas",
     price: 2399,
     shortDescription: "Mueble pensado para la rutina y el descanso de tu gato.",
@@ -238,7 +242,7 @@ export const products: Product[] = [
   {
     id: 7,
     slug: "gabinete-oculto-arenero",
-    name: "Hidden Cat Litter Cabinet",
+    name: "Gabinete Oculto para Arenero",
     category: "mascotas",
     price: 4999,
     shortDescription: "Elegancia discreta para un espacio más limpio y refinado.",
@@ -264,7 +268,7 @@ export const products: Product[] = [
   {
     id: 8,
     slug: "cama-premium-mascota",
-    name: "Premium Pet Bed",
+    name: "Cama Premium para Mascota",
     category: "mascotas",
     price: 1899,
     shortDescription: "Cama de descanso con sensación de lujo y confort constante.",
@@ -290,7 +294,7 @@ export const products: Product[] = [
   {
     id: 9,
     slug: "kit-iluminacion-ambiental-auto",
-    name: "Automotive Ambient Lighting Kit",
+    name: "Kit de Iluminación Ambiental para Auto",
     category: "auto",
     price: 3299,
     shortDescription: "Luz interior premium con control de tono y ambiente elegante.",
@@ -316,7 +320,7 @@ export const products: Product[] = [
   {
     id: 10,
     slug: "linterna-outdoor-premium",
-    name: "Premium Outdoor Lantern",
+    name: "Linterna Premium para Exterior",
     category: "outdoor",
     price: 2599,
     shortDescription: "Luz para exteriores con presencia y un diseño con carácter.",
@@ -342,7 +346,7 @@ export const products: Product[] = [
   {
     id: 11,
     slug: "regalo-arte-personalizado",
-    name: "Personalized Art Gift",
+    name: "Regalo de Arte Personalizado",
     category: "regalos",
     price: 3999,
     shortDescription: "Un regalo pensado para momentos inolvidables y detalles únicos.",
@@ -369,7 +373,7 @@ export const products: Product[] = [
   {
     id: 12,
     slug: "wall-art-edicion-limitada",
-    name: "Limited Edition Wall Art",
+    name: "Arte de Pared de Edición Limitada",
     category: "regalos",
     price: 7999,
     badge: "Limited",
@@ -404,5 +408,6 @@ export const formatPrice = (value: number) =>
   new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
+    currencyDisplay: "code",
     maximumFractionDigits: 0,
   }).format(value);

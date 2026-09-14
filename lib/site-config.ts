@@ -1,5 +1,5 @@
 export const siteConfig = {
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://example.com",
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   meta: {
     title: "TIMESHOP | Premium Lifestyle",
     description: "Tienda premium mexicana de hogar, mascotas, auto, outdoor y regalos.",

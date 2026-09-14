@@ -14,6 +14,7 @@ export default function OrdersPage() {
   return (
     <div className="container-shell" style={{ padding: "24px 0 40px" }}>
       <div className="page-hero">
+        <Link href="/account" className="ghost-button">Volver a mi cuenta</Link>
         <h1>Mis pedidos</h1>
         <p>Consulta el estado de cada compra.</p>
       </div>

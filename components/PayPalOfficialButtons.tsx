@@ -21,7 +21,7 @@ declare global {
 }
 
 export default function PayPalOfficialButtons({ fundingSource, onSuccess, onError, checkoutData, disabled }: PayPalOfficialButtonsProps) {
-  const { items } = useCart();
+  const { items, couponCode } = useCart();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function PayPalOfficialButtons({ fundingSource, onSuccess, onErro
         const response = await fetch("/api/paypal/create-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: items.map((item) => ({ id: item.id, quantity: item.quantity })), currency: "MXN", orderId: `ts-${Date.now()}`, ...checkoutData }),
+          body: JSON.stringify({ items: items.map((item) => ({ id: item.id, color: item.color, quantity: item.quantity })), currency: "MXN", orderId: `ts-${Date.now()}`, couponCode, ...checkoutData }),
         });
         if (!response.ok) throw new Error("No se pudo iniciar el pago.");
         const data = await response.json() as { id?: string };
@@ -61,7 +61,7 @@ export default function PayPalOfficialButtons({ fundingSource, onSuccess, onErro
     void buttons.render(container).catch((error: Error) => onError(error.message || "Este método de pago no está disponible."));
 
     return () => container.replaceChildren();
-  }, [checkoutData, disabled, fundingSource, items, onError, onSuccess]);
+  }, [checkoutData, couponCode, disabled, fundingSource, items, onError, onSuccess]);
 
   return <div className="paypal-official-buttons notranslate" lang="en" translate="no" ref={containerRef} aria-label={fundingSource === "card" ? "Debit or credit card payment" : "PayPal payment"} />;
 }

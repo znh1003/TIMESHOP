@@ -19,12 +19,15 @@ async function recordCapturedOrder(supabase: NonNullable<ReturnType<typeof getSu
   if (existingOrderError) throw new Error("No se pudo consultar el pedido de PayPal.");
 
   if (existingOrder) {
-    await supabase.from(tableNames.orders).update({ payment_status: "Pagado", order_status: "Procesando", paypal_capture_id: resource.id ?? null }).eq("id", existingOrder.id);
-    await supabase.from(tableNames.payments).update({ status: "Pagado", paypal_capture_id: resource.id ?? null }).eq("paypal_order_id", paypalOrderId);
-    await supabase.rpc("confirm_product_inventory", { p_paypal_order_id: paypalOrderId });
-    if (!existingOrder.confirmation_email_sent_at && existingOrder.guest_email) {
-      const sent = await sendOrderConfirmation({ email: existingOrder.guest_email, customerName: existingOrder.customer_name, orderNumber: existingOrder.order_number, total: existingOrder.total, currency: existingOrder.currency }).catch(() => false);
-      if (sent) await supabase.from(tableNames.orders).update({ confirmation_email_sent_at: new Date().toISOString() }).eq("id", existingOrder.id).is("confirmation_email_sent_at", null);
+    const { data: recordedOrders, error: recordError } = await supabase.rpc("record_captured_order", {
+      p_paypal_order_id: paypalOrderId,
+      p_paypal_capture_id: resource.id ?? null,
+    });
+    const order = recordedOrders?.[0];
+    if (recordError || !order) throw new Error(recordError?.message ?? "No se pudo confirmar el pedido capturado.");
+    if (!order.confirmation_email_sent_at && order.guest_email) {
+      const sent = await sendOrderConfirmation({ email: order.guest_email, customerName: order.customer_name, orderNumber: order.order_number, total: order.total, currency: order.currency }).catch(() => false);
+      if (sent) await supabase.from(tableNames.orders).update({ confirmation_email_sent_at: new Date().toISOString() }).eq("id", order.id).is("confirmation_email_sent_at", null);
     }
     return;
   }
@@ -41,49 +44,12 @@ async function recordCapturedOrder(supabase: NonNullable<ReturnType<typeof getSu
     throw new Error("El pago capturado no coincide con el borrador del pedido.");
   }
 
-  const { data: order, error: orderError } = await supabase
-    .from(tableNames.orders)
-    .insert({
-      order_number: draft.order_number,
-      user_id: draft.user_id,
-      guest_email: draft.guest_email,
-      customer_name: draft.customer_name ?? "Cliente",
-      phone: draft.phone,
-      shipping_address: draft.shipping_address,
-      total: paidTotal,
-      currency: draft.currency,
-      payment_status: "Pagado",
-      order_status: "Procesando",
-      paypal_order_id: paypalOrderId,
-      paypal_capture_id: resource.id ?? null,
-    })
-    .select("id, order_number, guest_email, customer_name, total, currency")
-    .single();
-  if (orderError?.code === "23505") return;
-  if (orderError || !order) throw new Error("No se pudo guardar el pedido capturado.");
-
-  const items = draft.items as Array<{ productId?: string; productName?: string; price?: number; quantity?: number }>;
-  if (!Array.isArray(items) || !items.length) throw new Error("El pedido capturado no contiene productos.");
-  const { error: itemsError } = await supabase.from(tableNames.orderItems).insert(items.map((item) => ({
-    order_id: order.id,
-    product_id: item.productId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.productId) ? item.productId : null,
-    product_name: item.productName ?? "Producto",
-    price: Number(item.price ?? 0),
-    quantity: Number(item.quantity ?? 1),
-  })));
-  if (itemsError) throw new Error("No se pudieron guardar los productos del pedido capturado.");
-
-  const { error: paymentError } = await supabase.from(tableNames.payments).insert({
-    order_id: order.id,
-    payment_method: "PayPal",
-    paypal_order_id: paypalOrderId,
-    paypal_capture_id: resource.id ?? null,
-    status: "Pagado",
-    amount: paidTotal,
+  const { data: recordedOrders, error: recordError } = await supabase.rpc("record_captured_order", {
+    p_paypal_order_id: paypalOrderId,
+    p_paypal_capture_id: resource.id ?? null,
   });
-  if (paymentError) throw new Error("No se pudo registrar el pago capturado.");
-  await supabase.rpc("confirm_product_inventory", { p_paypal_order_id: paypalOrderId });
-  await supabase.from("checkout_drafts").update({ status: "captured" }).eq("paypal_order_id", paypalOrderId);
+  const order = recordedOrders?.[0];
+  if (recordError || !order) throw new Error(recordError?.message ?? "No se pudo guardar el pedido capturado.");
   if (order.guest_email) {
     const sent = await sendOrderConfirmation({ email: order.guest_email, customerName: order.customer_name, orderNumber: order.order_number, total: order.total, currency: order.currency }).catch(() => false);
     if (sent) await supabase.from(tableNames.orders).update({ confirmation_email_sent_at: new Date().toISOString() }).eq("id", order.id).is("confirmation_email_sent_at", null);

@@ -6,6 +6,7 @@ export default function AccountPage() {
   return (
     <div className="container-shell" style={{ padding: "24px 0 40px" }}>
       <div className="page-hero">
+        <Link href="/shop" className="ghost-button">Volver a la tienda</Link>
         <h1>Mi cuenta</h1>
         <p>Consulta tus pedidos, favoritos y detalles personales.</p>
       </div>

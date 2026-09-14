@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("ana@email.com");
+  const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,10 @@ export default function ForgotPasswordPage() {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email,
+          next: new URLSearchParams(window.location.search).get("next") === "/admin/set-password" ? "/admin/set-password" : undefined,
+        }),
       });
 
       const data = (await response.json()) as { ok?: boolean; message?: string; error?: string };

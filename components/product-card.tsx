@@ -3,12 +3,9 @@
 import Link from "next/link";
 import { formatPrice, type Product } from "@/data/products";
 import { useCart } from "@/components/cart-provider";
-import { useWishlist } from "@/components/wishlist";
 
 export function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
-  const { toggle, isSaved } = useWishlist();
-  const saved = isSaved(product.id);
   const isOutOfStock = product.stock.toLowerCase().includes("agotado");
 
   const addProduct = () => {
@@ -29,10 +26,7 @@ export function ProductCard({ product }: { product: Product }) {
           <img src={product.image} alt={product.name} />
         </Link>
         <div className="product-card-topline">
-          {product.badge ? <span className="badge">{product.badge === "Best Seller" ? "Más vendido" : product.badge}</span> : <span className="badge badge-new">Novedad</span>}
-          <button type="button" className={`wishlist-button ${saved ? "is-saved" : ""}`} onClick={() => toggle(product.id, product.slug)} aria-label={saved ? "Quitar de favoritos" : "Añadir a favoritos"}>
-            {saved ? "♥" : "♡"}
-          </button>
+          {product.badge ? <span className="badge">{product.badge === "Best Seller" ? "Más vendido" : product.badge === "Limited" ? "Edición limitada" : product.badge}</span> : null}
         </div>
         <div className="product-card-actions">
           <button type="button" className="quick-add-button" onClick={addProduct} disabled={isOutOfStock}>

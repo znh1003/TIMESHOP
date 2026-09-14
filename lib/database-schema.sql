@@ -30,10 +30,12 @@ CREATE TABLE IF NOT EXISTS products (
   dimensions TEXT,
   colors TEXT[],
   stock TEXT,
+  shipping_fee NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (shipping_fee >= 0),
   featured BOOLEAN DEFAULT FALSE,
   limited BOOLEAN DEFAULT FALSE,
   image_url TEXT,
   gallery JSONB,
+  detail_images JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

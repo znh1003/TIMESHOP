@@ -16,6 +16,8 @@ export type CartItem = {
   name: string;
   price: number;
   image: string;
+  color?: string;
+  shippingFee?: number;
   quantity: number;
 };
 
@@ -23,12 +25,16 @@ type CartContextValue = {
   items: CartItem[];
   subtotal: number;
   shipping: number;
+  discount: number;
+  couponCode: string | null;
   total: number;
   itemCount: number;
   addToCart: (product: Omit<CartItem, "quantity">) => void;
-  updateQuantity: (id: string | number, delta: number) => void;
-  removeFromCart: (id: string | number) => void;
+  updateQuantity: (id: string | number, color: string | undefined, delta: number) => void;
+  removeFromCart: (id: string | number, color?: string) => void;
   clearCart: () => void;
+  applyCoupon: (code: string, discount: number) => void;
+  clearCoupon: () => void;
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -36,6 +42,7 @@ const CART_STORAGE_KEY = "timeshop_cart";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
 
   useEffect(() => {
     const raw = window.localStorage.getItem(CART_STORAGE_KEY);
@@ -43,7 +50,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     try {
       const parsed = JSON.parse(raw) as CartItem[];
-      if (Array.isArray(parsed)) startTransition(() => setItems(parsed));
+      if (!Array.isArray(parsed)) return;
+      void fetch("/api/products")
+        .then(async (response) => response.ok ? await response.json() as { items?: Array<{ databaseId?: string; id: string | number }> } : null)
+        .then((catalog) => {
+          const availableIds = new Set((catalog?.items ?? []).map((product) => String(product.databaseId ?? product.id)));
+          startTransition(() => setItems(parsed.filter((item) => availableIds.has(String(item.id)))));
+        })
+        .catch(() => startTransition(() => setItems(parsed)));
     } catch {
       window.localStorage.removeItem(CART_STORAGE_KEY);
     }
@@ -55,10 +69,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (product: Omit<CartItem, "quantity">) => {
     setItems((current) => {
-      const item = current.find((entry) => entry.id === product.id);
+      const item = current.find((entry) => entry.id === product.id && entry.color === product.color);
       if (item) {
         return current.map((entry) =>
-          entry.id === product.id ? { ...entry, quantity: entry.quantity + 1 } : entry,
+          entry.id === product.id && entry.color === product.color ? { ...entry, quantity: entry.quantity + 1 } : entry,
         );
       }
 
@@ -67,28 +81,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new CustomEvent("timeshop:add-to-cart", { detail: product }));
   };
 
-  const updateQuantity = (id: string | number, delta: number) => {
+  const updateQuantity = (id: string | number, color: string | undefined, delta: number) => {
     setItems((current) =>
       current
         .map((entry) =>
-          entry.id === id ? { ...entry, quantity: Math.max(0, entry.quantity + delta) } : entry,
+          entry.id === id && entry.color === color ? { ...entry, quantity: Math.max(0, entry.quantity + delta) } : entry,
         )
         .filter((entry) => entry.quantity > 0),
     );
   };
 
-  const removeFromCart = (id: string | number) => {
-    setItems((current) => current.filter((entry) => entry.id !== id));
+  const removeFromCart = (id: string | number, color?: string) => {
+    setItems((current) => current.filter((entry) => entry.id !== id || entry.color !== color));
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => {
+    setItems([]);
+    setCoupon(null);
+  };
+  const applyCoupon = (code: string, discount: number) => setCoupon({ code, discount });
+  const clearCoupon = () => setCoupon(null);
 
   const subtotal = useMemo(
     () => items.reduce((total, item) => total + item.price * item.quantity, 0),
     [items],
   );
-  const shipping = subtotal > 0 && subtotal < 2500 ? 299 : 0;
-  const total = subtotal + shipping;
+  const shipping = useMemo(
+    () => items.reduce((total, item) => total + (item.shippingFee ?? 0) * item.quantity, 0),
+    [items],
+  );
+  const discount = Math.min(subtotal, coupon?.discount ?? 0);
+  const total = subtotal + shipping - discount;
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
 
   const value = useMemo<CartContextValue>(
@@ -96,14 +119,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       items,
       subtotal,
       shipping,
+      discount,
+      couponCode: coupon?.code ?? null,
       total,
       itemCount,
       addToCart,
       updateQuantity,
       removeFromCart,
       clearCart,
+      applyCoupon,
+      clearCoupon,
     }),
-    [items, subtotal, shipping, total, itemCount],
+    [items, subtotal, shipping, discount, coupon, total, itemCount],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

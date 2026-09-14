@@ -10,7 +10,7 @@ import { AddressPasteAssist } from "@/components/address-paste-assist";
 import type { AddressFields } from "@/lib/address-parser";
 
 export default function CheckoutPage() {
-  const { items, subtotal, shipping, total, clearCart } = useCart();
+  const { items, subtotal, shipping, discount, couponCode, total, clearCart } = useCart();
   const cartIsEmpty = items.length === 0;
   const [form, setForm] = useState({
     name: "",
@@ -56,26 +56,23 @@ export default function CheckoutPage() {
     const params = new URLSearchParams(window.location.search);
     const paypalOrderId = params.get("token");
     const status = params.get("status");
-    const stored = window.localStorage.getItem("timeshop_checkout_data");
-    if (!paypalOrderId || status !== "success" || !stored) return;
+    if (!paypalOrderId || status !== "success") return;
 
     const captureOrder = async () => {
       setLoading(true);
-      setCaptureMessage("Confirming your PayPal payment...");
+      setCaptureMessage("Confirmando tu pago con PayPal...");
       try {
-        const checkoutData = JSON.parse(stored) as Record<string, unknown>;
         const response = await fetch("/api/paypal/capture-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...checkoutData, orderId: paypalOrderId }),
+          body: JSON.stringify({ orderId: paypalOrderId }),
         });
         if (!response.ok) throw new Error("Payment confirmation failed");
-        window.localStorage.removeItem("timeshop_checkout_data");
         clearCart();
-        setCaptureMessage("Payment confirmed. Thank you for your order.");
+        setCaptureMessage("Pago confirmado. Gracias por tu pedido.");
         router.replace("/checkout?status=confirmed");
       } catch {
-        setCaptureMessage("We could not confirm the payment yet. Please contact support before trying again.");
+        setCaptureMessage("No pudimos confirmar el pago todavía. Contacta con soporte antes de intentarlo de nuevo.");
       } finally {
         setLoading(false);
       }
@@ -88,7 +85,7 @@ export default function CheckoutPage() {
     event.preventDefault();
 
     if (items.length === 0) {
-      alert("Your bag is empty.");
+      alert("Tu carrito está vacío.");
       return;
     }
 
@@ -102,51 +99,26 @@ export default function CheckoutPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          items: items.map((item) => ({ id: item.id, quantity: item.quantity })),
+          items: items.map((item) => ({ id: item.id, color: item.color, quantity: item.quantity })),
           currency: "MXN",
           orderId,
+          couponCode,
           ...checkoutData,
         }),
       });
 
       if (!response.ok) {
         const data = (await response.json()) as { error?: string };
-        alert(data.error || "We were unable to complete your purchase. Please try again.");
+        alert(data.error || "No pudimos completar tu compra. Inténtalo de nuevo.");
         return;
       }
 
       const data = (await response.json()) as { approvalUrl?: string };
       if (data.approvalUrl) {
-        window.localStorage.setItem(
-          "timeshop_checkout_data",
-          JSON.stringify({
-            orderId,
-            customerName: `${form.name} ${form.lastName}`.trim(),
-            email: form.email,
-            phone: form.phone,
-            shippingAddress: {
-              state: form.state,
-              city: form.city,
-              postalCode: form.postalCode,
-              neighborhood: form.neighborhood,
-              street: form.street,
-              number: form.number,
-            },
-            items: items.map((item) => ({
-              productId: String(item.id),
-              productName: item.name,
-              price: item.price,
-              quantity: item.quantity,
-            })),
-            total,
-            currency: "MXN",
-          }),
-        );
-
         window.location.href = data.approvalUrl;
       }
     } catch {
-      alert("We were unable to complete your purchase. Please try again or contact us.");
+      alert("No pudimos completar tu compra. Inténtalo de nuevo o contacta con nosotros.");
     } finally {
       setLoading(false);
     }
@@ -162,10 +134,10 @@ export default function CheckoutPage() {
       </div>
 
       <div className="checkout-steps" aria-label="Checkout progress">
-        <span className="is-active">1. Contact</span>
-        <span className="is-active">2. Shipping</span>
-        <span>3. Payment</span>
-        <span>4. Order review</span>
+        <span className="is-active">1. Contacto</span>
+        <span className="is-active">2. Envío</span>
+        <span>3. Pago</span>
+        <span>4. Revisión</span>
       </div>
 
       <form className="form-shell checkout-form" onSubmit={handlePayPalCheckout}>
@@ -241,27 +213,31 @@ export default function CheckoutPage() {
             <div>Aceptamos PayPal, Apple Pay y Google Pay. Tus datos están protegidos con cifrado SSL.</div>
           </div>
 
+          <p className="checkout-delivery-note">Envíos a México: la entrega es estimada y puede variar por procesamiento, paquetería, aduanas y destino.</p>
+
           <ExpressCheckout onSuccess={handleExpressSuccess} onError={setExpressError} checkoutData={checkoutData} disabled={!checkoutDetailsComplete || cartIsEmpty} />
           {expressError ? <p style={{ color: "#dc2626", fontSize: 14, margin: "8px 0" }} role="alert">{expressError}</p> : null}
 
           <div className="meta-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
-          <div className="meta-row"><span>Shipping</span><span>{formatPrice(shipping)}</span></div>
+          {discount > 0 ? <div className="meta-row"><span>Descuento {couponCode ? `(${couponCode})` : ""}</span><span>-{formatPrice(discount)}</span></div> : null}
+          <div className="meta-row"><span>Envío</span><span>{formatPrice(shipping)}</span></div>
           <div className="total-row"><span>Total</span><span>{formatPrice(total)}</span></div>
           <div style={{ marginTop: 18 }}>
             <button
               className="primary-button"
               style={{ width: "100%" }}
               type="submit"
-              disabled={loading}
+              disabled={loading || cartIsEmpty || !checkoutDetailsComplete}
               onClick={() => {
                 if (cartIsEmpty) {
-                  alert("Your bag is empty. Add a product before checking out.");
+                  alert("Tu carrito está vacío. Agrega un producto antes de pagar.");
                 }
               }}
             >
               {loading ? "Procesando..." : "Pagar con PayPal"}
             </button>
           </div>
+          <p className="checkout-terms">Al realizar tu pedido, confirmas que has revisado y aceptado nuestros <Link href="/terms">Términos y condiciones</Link>, <Link href="/shipping">Política de envíos</Link> y <Link href="/returns-policy">Política de devoluciones</Link>.</p>
           <div style={{ marginTop: 12 }}>
             <Link href="/returns-policy" className="ghost-button" style={{ width: "100%" }}>
               Política de devoluciones

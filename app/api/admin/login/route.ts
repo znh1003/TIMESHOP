@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
-import { isAdminEmail } from "@/lib/admin-auth";
+import { getAdminRole } from "@/lib/admin-auth";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   });
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !data.user || !isAdminEmail(data.user.email)) {
+  if (error || !data.user || !await getAdminRole(data.user.id)) {
     if (data.session) await supabase.auth.signOut();
     return NextResponse.json({ error: "No tienes permisos para acceder al panel." }, { status: 403 });
   }
