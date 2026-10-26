@@ -178,6 +178,7 @@ export function Header() {
           </div>
         </div>
       </div>
+    </header>
 
       <div
         className={`mobile-menu-backdrop ${mobileOpen ? "is-open" : ""}`}
@@ -230,7 +231,6 @@ export function Header() {
         )}
       </aside>
 
-      </header>
       <div className={`search-overlay ${searchOpen ? "is-open" : ""}`} role="dialog" aria-modal="true" aria-label="Search products">
         <div className="search-overlay-inner">
           <div className="search-overlay-top"><span>Buscar</span><button type="button" onClick={() => setSearchOpen(false)} aria-label="Cerrar búsqueda">×</button></div>
