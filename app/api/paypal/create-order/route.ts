@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const limited = await rateLimit(request, "paypal-create-order", 10, 60_000);
   if (limited) return limited;
   try {
-    let body: { items?: Array<{ id?: string | number; color?: string; quantity?: number }>; currency?: string; orderId?: string; customerName?: string; email?: string; phone?: string; shippingAddress?: Record<string, string>; couponCode?: string | null };
+    let body: { items?: Array<{ id?: string | number; color?: string; size?: string; quantity?: number }>; currency?: string; orderId?: string; customerName?: string; email?: string; phone?: string; shippingAddress?: Record<string, string>; couponCode?: string | null };
     try {
       body = await request.json();
     } catch {
@@ -34,13 +34,21 @@ export async function POST(request: Request) {
     const currency = body.currency ?? "MXN";
     const orderId = body.orderId ?? `ts-${Date.now()}`;
     const items = Array.isArray(body.items) ? body.items : [];
+    if (items.some((item) => !item || typeof item !== "object"
+      || (item.color !== undefined && typeof item.color !== "string")
+      || (item.size !== undefined && typeof item.size !== "string"))) {
+      return NextResponse.json({ error: "Las variantes de uno o más productos no son válidas." }, { status: 400 });
+    }
     const products = await getCatalogProducts();
     const requestedItems = items.map((item) => {
       const product = products.find((entry) => entry.databaseId === String(item.id) || entry.id === item.id);
       const color = item.color?.trim() || undefined;
-      return { product, color, price: product?.colorPrices?.[color ?? ""] ?? product?.price ?? 0, quantity: Math.max(1, Math.min(20, Number(item.quantity ?? 1))) };
+      const size = item.size?.trim() || undefined;
+      return { product, color, size, price: product?.colorPrices?.[color ?? ""] ?? product?.price ?? 0, quantity: Math.max(1, Math.min(20, Number(item.quantity ?? 1))) };
     });
-    if (requestedItems.some((item) => !item.product || (item.color && !item.product.colors.includes(item.color)))) {
+    if (requestedItems.some((item) => !item.product
+      || (item.color && !item.product.colors.includes(item.color))
+      || (item.product.sizes?.length ? !item.size || !item.product.sizes.includes(item.size) : Boolean(item.size)))) {
       return NextResponse.json({ error: "Uno o más productos ya no están disponibles." }, { status: 400 });
     }
     if (requestedItems.some((item) => !item.product?.databaseId)) {
@@ -100,7 +108,14 @@ export async function POST(request: Request) {
       customer_name: body.customerName?.trim() || null,
       phone: body.phone?.trim() || null,
       shipping_address: body.shippingAddress ?? null,
-      items: requestedItems.map(({ product, color, price, quantity }) => ({ productId: product?.databaseId ?? null, productName: product?.name, color, price, quantity })),
+      items: requestedItems.map(({ product, color, size, price, quantity }) => ({
+        productId: product?.databaseId ?? null,
+        productName: `${product?.name ?? "Producto"}${color || size ? ` (${[color, size].filter(Boolean).join(" / ")})` : ""}`,
+        color,
+        size,
+        price,
+        quantity,
+      })),
       subtotal,
       shipping,
       coupon_code: couponCode,

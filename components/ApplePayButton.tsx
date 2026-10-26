@@ -141,7 +141,7 @@ export default function ApplePayButton({ onSuccess, onError, checkoutData, disab
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              items: items.map((item) => ({ id: item.id, color: item.color, quantity: item.quantity })),
+              items: items.map((item) => ({ id: item.id, color: item.color, size: item.size, quantity: item.quantity })),
               currency: "MXN",
               orderId,
               couponCode,

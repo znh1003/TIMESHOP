@@ -36,7 +36,7 @@ export default function PayPalCardButton({ onSuccess, onError, fundingSource: re
         const response = await fetch("/api/paypal/create-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: items.map((item) => ({ id: item.id, quantity: item.quantity })), currency: "MXN", orderId: `ts-${Date.now()}` }),
+          body: JSON.stringify({ items: items.map((item) => ({ id: item.id, color: item.color, size: item.size, quantity: item.quantity })), currency: "MXN", orderId: `ts-${Date.now()}` }),
         });
         if (!response.ok) throw new Error("No se pudo iniciar el pago con tarjeta.");
         const data = await response.json();
@@ -46,7 +46,7 @@ export default function PayPalCardButton({ onSuccess, onError, fundingSource: re
         const response = await fetch("/api/paypal/capture-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: data.orderID, items: items.map((item) => ({ productId: String(item.id), productName: item.name, price: item.price, quantity: item.quantity })) }),
+          body: JSON.stringify({ orderId: data.orderID, items: items.map((item) => ({ productId: String(item.id), productName: item.name, size: item.size, price: item.price, quantity: item.quantity })) }),
         });
         if (!response.ok) throw new Error("No se pudo confirmar el pago con tarjeta.");
         setLoading(false);

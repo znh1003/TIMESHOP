@@ -117,7 +117,7 @@ export default function CheckoutPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          items: items.map((item) => ({ id: item.id, color: item.color, quantity: item.quantity })),
+          items: items.map((item) => ({ id: item.id, color: item.color, size: item.size, quantity: item.quantity })),
           currency: "MXN",
           orderId,
           couponCode,
@@ -236,6 +236,12 @@ export default function CheckoutPage() {
           <ExpressCheckout onSuccess={handleExpressSuccess} onError={setExpressError} checkoutData={checkoutData} disabled={!checkoutDetailsComplete || cartIsEmpty} />
           {expressError ? <p style={{ color: "#dc2626", fontSize: 14, margin: "8px 0" }} role="alert">{expressError}</p> : null}
 
+          <div className="checkout-item-list">
+            {items.map((item) => <div className="meta-row" key={`${item.id}-${item.color ?? "default"}-${item.size ?? "default"}`}>
+              <span>{item.name}{item.color ? ` · ${item.color}` : ""}{item.size ? ` · Talla ${item.size}` : ""} × {item.quantity}</span>
+              <span>{formatPrice(item.price * item.quantity)}</span>
+            </div>)}
+          </div>
           <div className="meta-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
           {discount > 0 ? <div className="meta-row"><span>Descuento {couponCode ? `(${couponCode})` : ""}</span><span>-{formatPrice(discount)}</span></div> : null}
           <div className="meta-row"><span>Envío</span><span>{formatPrice(shipping)}</span></div>

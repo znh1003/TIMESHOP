@@ -27,6 +27,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(product?.gallery[0] ?? "");
   const [selectedColor, setSelectedColor] = useState(product?.colors[0] ?? "");
+  const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] ?? "");
   const [zoomOpen, setZoomOpen] = useState(false);
   const { toggle, isSaved } = useWishlist();
 
@@ -38,6 +39,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         setProduct(databaseProduct);
         setActiveImage(imageForColor(databaseProduct, databaseProduct.colors[0] ?? ""));
         setSelectedColor(databaseProduct.colors[0] ?? "");
+        setSelectedSize(databaseProduct.sizes?.[0] ?? "");
         // Meta Pixel: ViewContent
         metaEvents.viewContent({
           content_name: databaseProduct.name,
@@ -119,6 +121,12 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               {product.colors.map((color) => <button type="button" key={color} className={selectedColor === color ? "is-selected" : ""} onClick={() => { setSelectedColor(color); setActiveImage(imageForColor(product, color)); }} disabled={isOutOfStock}>{color}</button>)}
             </div>
           </div>
+          {product.sizes?.length ? <div className="variant-control">
+            <div><span>Talla</span><strong>{selectedSize || "Elige una talla"}</strong></div>
+            <div className="variant-options" role="group" aria-label="Selecciona una talla">
+              {product.sizes.map((size) => <button type="button" key={size} className={selectedSize === size ? "is-selected" : ""} aria-pressed={selectedSize === size} onClick={() => setSelectedSize(size)} disabled={isOutOfStock}>{size}</button>)}
+            </div>
+          </div> : null}
           <div className="meta-row"><span>Disponibilidad</span><span>{product.stock}</span></div>
           <div className="meta-row"><span>Materiales</span><span>{product.materials.join(", ")}</span></div>
           <div className="meta-row"><span>Dimensiones</span><span>{product.dimensions}</span></div>
@@ -129,7 +137,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               className="primary-button"
               disabled={isOutOfStock}
               onClick={() => {
-                for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: selectedPrice, image: imageForColor(product, selectedColor), color: selectedColor, shippingFee: product.shippingFee });
+                for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: selectedPrice, image: imageForColor(product, selectedColor), color: selectedColor, size: selectedSize || undefined, shippingFee: product.shippingFee });
                 // Meta Pixel: AddToCart
                 metaEvents.addToCart({
                   content_name: product.name,
@@ -147,7 +155,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               className="secondary-button"
               disabled={isOutOfStock}
               onClick={() => {
-                for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: selectedPrice, image: imageForColor(product, selectedColor), color: selectedColor, shippingFee: product.shippingFee });
+                for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: selectedPrice, image: imageForColor(product, selectedColor), color: selectedColor, size: selectedSize || undefined, shippingFee: product.shippingFee });
                 // Meta Pixel: AddToCart
                 metaEvents.addToCart({
                   content_name: product.name,

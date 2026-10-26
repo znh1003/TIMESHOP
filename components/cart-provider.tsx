@@ -17,6 +17,7 @@ export type CartItem = {
   price: number;
   image: string;
   color?: string;
+  size?: string;
   shippingFee?: number;
   quantity: number;
 };
@@ -30,8 +31,8 @@ type CartContextValue = {
   total: number;
   itemCount: number;
   addToCart: (product: Omit<CartItem, "quantity">) => void;
-  updateQuantity: (id: string | number, color: string | undefined, delta: number) => void;
-  removeFromCart: (id: string | number, color?: string) => void;
+  updateQuantity: (id: string | number, color: string | undefined, size: string | undefined, delta: number) => void;
+  removeFromCart: (id: string | number, color?: string, size?: string) => void;
   clearCart: () => void;
   applyCoupon: (code: string, discount: number) => void;
   clearCoupon: () => void;
@@ -69,10 +70,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (product: Omit<CartItem, "quantity">) => {
     setItems((current) => {
-      const item = current.find((entry) => entry.id === product.id && entry.color === product.color);
+      const item = current.find((entry) => entry.id === product.id && entry.color === product.color && entry.size === product.size);
       if (item) {
         return current.map((entry) =>
-          entry.id === product.id && entry.color === product.color ? { ...entry, quantity: entry.quantity + 1 } : entry,
+          entry.id === product.id && entry.color === product.color && entry.size === product.size ? { ...entry, quantity: entry.quantity + 1 } : entry,
         );
       }
 
@@ -81,18 +82,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new CustomEvent("timeshop:add-to-cart", { detail: product }));
   };
 
-  const updateQuantity = (id: string | number, color: string | undefined, delta: number) => {
+  const updateQuantity = (id: string | number, color: string | undefined, size: string | undefined, delta: number) => {
     setItems((current) =>
       current
         .map((entry) =>
-          entry.id === id && entry.color === color ? { ...entry, quantity: Math.max(0, entry.quantity + delta) } : entry,
+          entry.id === id && entry.color === color && entry.size === size ? { ...entry, quantity: Math.max(0, entry.quantity + delta) } : entry,
         )
         .filter((entry) => entry.quantity > 0),
     );
   };
 
-  const removeFromCart = (id: string | number, color?: string) => {
-    setItems((current) => current.filter((entry) => entry.id !== id || entry.color !== color));
+  const removeFromCart = (id: string | number, color?: string, size?: string) => {
+    setItems((current) => current.filter((entry) => entry.id !== id || entry.color !== color || entry.size !== size));
   };
 
   const clearCart = () => {

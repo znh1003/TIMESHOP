@@ -21,6 +21,7 @@ export type Product = {
   materials: string[];
   dimensions: string;
   colors: string[];
+  sizes?: string[];
   details: string[];
   image: string;
   colorImages?: Record<string, string>;

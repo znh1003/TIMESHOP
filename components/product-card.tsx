@@ -29,9 +29,9 @@ export function ProductCard({ product }: { product: Product }) {
           {product.badge ? <span className="badge">{product.badge === "Best Seller" ? "Más vendido" : product.badge === "Limited" ? "Edición limitada" : product.badge}</span> : null}
         </div>
         <div className="product-card-actions">
-          <button type="button" className="quick-add-button" onClick={addProduct} disabled={isOutOfStock}>
-            {isOutOfStock ? "Agotado" : "Añadir al carrito"}
-          </button>
+          {product.sizes?.length && !isOutOfStock
+            ? <Link className="quick-add-button" href={`/products/${product.slug}`}>Elegir talla</Link>
+            : <button type="button" className="quick-add-button" onClick={addProduct} disabled={isOutOfStock}>{isOutOfStock ? "Agotado" : "Añadir al carrito"}</button>}
         </div>
       </div>
       <div className="product-body">

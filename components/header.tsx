@@ -220,9 +220,9 @@ export function Header() {
           <>
             <div className="cart-drawer-items">
               {items.map((item) => (
-                <div key={`${item.id}-${item.color ?? "default"}`} className="cart-drawer-item">
+                <div key={`${item.id}-${item.color ?? "default"}-${item.size ?? "default"}`} className="cart-drawer-item">
                   <img src={item.image} alt={item.name} />
-                  <div><strong>{item.name}</strong><span>{formatPrice(item.price)}</span>{item.color ? <span>Color: {item.color}</span> : null}<div className="drawer-quantity"><button type="button" onClick={() => updateQuantity(item.id, item.color, -1)} aria-label="Reducir cantidad">−</button><span>{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.id, item.color, 1)} aria-label="Aumentar cantidad">+</button><button type="button" onClick={() => removeFromCart(item.id, item.color)} aria-label={`Eliminar ${item.name}`}>Eliminar</button></div></div>
+                  <div><strong>{item.name}</strong><span>{formatPrice(item.price)}</span>{item.color ? <span>Color: {item.color}</span> : null}{item.size ? <span>Talla: {item.size}</span> : null}<div className="drawer-quantity"><button type="button" onClick={() => updateQuantity(item.id, item.color, item.size, -1)} aria-label="Reducir cantidad">−</button><span>{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.id, item.color, item.size, 1)} aria-label="Aumentar cantidad">+</button><button type="button" onClick={() => removeFromCart(item.id, item.color, item.size)} aria-label={`Eliminar ${item.name}`}>Eliminar</button></div></div>
                 </div>
               ))}
             </div>

@@ -40,7 +40,7 @@ export default function PayPalOfficialButtons({ fundingSource, onSuccess, onErro
         const response = await fetch("/api/paypal/create-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: currentItems.map((item) => ({ id: item.id, color: item.color, quantity: item.quantity })), currency: "MXN", orderId: `ts-${Date.now()}`, couponCode: currentCouponCode, ...currentCheckoutData }),
+          body: JSON.stringify({ items: currentItems.map((item) => ({ id: item.id, color: item.color, size: item.size, quantity: item.quantity })), currency: "MXN", orderId: `ts-${Date.now()}`, couponCode: currentCouponCode, ...currentCheckoutData }),
         });
         if (!response.ok) throw new Error("No se pudo iniciar el pago.");
         const data = await response.json() as { id?: string };
@@ -52,7 +52,7 @@ export default function PayPalOfficialButtons({ fundingSource, onSuccess, onErro
         const response = await fetch("/api/paypal/capture-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: data.orderID, items: currentItems.map((item) => ({ productId: String(item.id), productName: item.name, price: item.price, quantity: item.quantity })) }),
+          body: JSON.stringify({ orderId: data.orderID, items: currentItems.map((item) => ({ productId: String(item.id), productName: item.name, size: item.size, price: item.price, quantity: item.quantity })) }),
         });
         if (!response.ok) throw new Error("No se pudo confirmar el pago.");
         latestValuesRef.current.onSuccess(data.orderID);

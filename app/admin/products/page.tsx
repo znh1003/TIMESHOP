@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 export const dynamic = "force-dynamic";
 
-type AdminProduct = { id: string; name: string; category: string | null; price: number; shipping_fee: number | null; inventory_quantity: number | null; short_description: string | null; description: string | null; materials: unknown; dimensions: string | null; colors: unknown; featured: boolean; is_published: boolean; image_url: string | null; color_images: unknown; color_prices: unknown; gallery: unknown; detail_images: unknown };
+type AdminProduct = { id: string; name: string; category: string | null; price: number; shipping_fee: number | null; inventory_quantity: number | null; short_description: string | null; description: string | null; materials: unknown; dimensions: string | null; colors: unknown; size_options: unknown; featured: boolean; is_published: boolean; image_url: string | null; color_images: unknown; color_prices: unknown; gallery: unknown; detail_images: unknown };
 type AdminCategory = { id: string; slug: string; name: string };
 
 const MAX_UPLOAD_IMAGE_BYTES = 7 * 1024 * 1024;
@@ -62,7 +62,7 @@ export default function AdminProductsPage() {
   const editorDialogRef = useRef<HTMLDialogElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState({ name: "", category: "", price: "", shippingFee: "0", inventoryQuantity: "", shortDescription: "", description: "", materials: "", dimensions: "", colors: "", primaryImage: "", colorImages: {} as Record<string, string>, colorPrices: {} as Record<string, string>, gallery: [] as string[], detailImages: [] as string[] });
+  const [draft, setDraft] = useState({ name: "", category: "", price: "", shippingFee: "0", inventoryQuantity: "", shortDescription: "", description: "", materials: "", dimensions: "", colors: "", sizes: "", primaryImage: "", colorImages: {} as Record<string, string>, colorPrices: {} as Record<string, string>, gallery: [] as string[], detailImages: [] as string[] });
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
@@ -102,6 +102,7 @@ export default function AdminProductsPage() {
   const beginEditing = (product: AdminProduct) => {
     const materials = toStringList(product.materials);
     const colors = toStringList(product.colors);
+    const sizes = toStringList(product.size_options);
     const colorImages = toImageMap(product.color_images);
     const colorPrices = toPriceMap(product.color_prices);
     const gallery = toStringList(product.gallery);
@@ -112,7 +113,7 @@ export default function AdminProductsPage() {
     setPendingDetailImages([]);
     const primaryImage = product.image_url || gallery[0] || "";
     const detailImages = toStringList(product.detail_images);
-    setDraft({ name: product.name, category: product.category ?? "", price: String(product.price), shippingFee: String(product.shipping_fee ?? 0), inventoryQuantity: String(product.inventory_quantity ?? 0), shortDescription: product.short_description ?? "", description: product.description ?? "", materials: materials.join(", "), dimensions: product.dimensions ?? "", colors: colors.join(", "), primaryImage, colorImages, colorPrices, gallery: gallery.filter((image) => image !== primaryImage), detailImages });
+    setDraft({ name: product.name, category: product.category ?? "", price: String(product.price), shippingFee: String(product.shipping_fee ?? 0), inventoryQuantity: String(product.inventory_quantity ?? 0), shortDescription: product.short_description ?? "", description: product.description ?? "", materials: materials.join(", "), dimensions: product.dimensions ?? "", colors: colors.join(", "), sizes: sizes.join(", "), primaryImage, colorImages, colorPrices, gallery: gallery.filter((image) => image !== primaryImage), detailImages });
   };
 
   const beginCreating = () => {
@@ -121,7 +122,7 @@ export default function AdminProductsPage() {
     setSaveError("");
     setPendingPrimaryImages([]);
     setPendingDetailImages([]);
-    setDraft({ name: "", category: "", price: "", shippingFee: "0", inventoryQuantity: "0", shortDescription: "", description: "", materials: "", dimensions: "", colors: "", primaryImage: "", colorImages: {}, colorPrices: {}, gallery: [], detailImages: [] });
+    setDraft({ name: "", category: "", price: "", shippingFee: "0", inventoryQuantity: "0", shortDescription: "", description: "", materials: "", dimensions: "", colors: "", sizes: "", primaryImage: "", colorImages: {}, colorPrices: {}, gallery: [], detailImages: [] });
   };
 
   const closeEditor = () => {
@@ -208,14 +209,15 @@ export default function AdminProductsPage() {
     try {
       const savedColorPrices = Object.fromEntries(Object.entries(draft.colorPrices).flatMap(([color, price]) => Number(price) > 0 ? [[color, Number(price)]] : []));
       const colorPrices = Object.keys(savedColorPrices).length ? savedColorPrices : undefined;
-      const response = await fetch("/api/admin", { method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, name: draft.name, category: draft.category, price: Number(draft.price), shippingFee: Number(draft.shippingFee), inventoryQuantity: Number(draft.inventoryQuantity), shortDescription: draft.shortDescription, description: draft.description, materials: draft.materials.split(",").map((item) => item.trim()).filter(Boolean), dimensions: draft.dimensions, colors: draft.colors.split(",").map((item) => item.trim()).filter(Boolean), primaryImage: draft.primaryImage, colorImages: draft.colorImages, colorPrices, gallery: draft.gallery, detailImages: draft.detailImages }) });
+      const sizes = toStringList(draft.sizes);
+      const response = await fetch("/api/admin", { method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, name: draft.name, category: draft.category, price: Number(draft.price), shippingFee: Number(draft.shippingFee), inventoryQuantity: Number(draft.inventoryQuantity), shortDescription: draft.shortDescription, description: draft.description, materials: draft.materials.split(",").map((item) => item.trim()).filter(Boolean), dimensions: draft.dimensions, colors: draft.colors.split(",").map((item) => item.trim()).filter(Boolean), sizes, primaryImage: draft.primaryImage, colorImages: draft.colorImages, colorPrices, gallery: draft.gallery, detailImages: draft.detailImages }) });
       const data = await response.json() as { item?: AdminProduct; error?: string };
       if (!response.ok || !data.item) throw new Error(data.error ?? "商品保存失败。");
       const savedProduct = data.item;
       if (!id && (pendingPrimaryImages.length || pendingDetailImages.length)) {
         setUploading(true);
         const images = await uploadPendingImages(savedProduct.id);
-        const imageResponse = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: savedProduct.id, name: draft.name, category: draft.category, price: Number(draft.price), shippingFee: Number(draft.shippingFee), inventoryQuantity: Number(draft.inventoryQuantity), shortDescription: draft.shortDescription, description: draft.description, materials: draft.materials.split(",").map((item) => item.trim()).filter(Boolean), dimensions: draft.dimensions, colors: draft.colors.split(",").map((item) => item.trim()).filter(Boolean), primaryImage: images.primaryImage, colorImages: draft.colorImages, colorPrices, gallery: images.gallery, detailImages: images.detailImages }) });
+        const imageResponse = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: savedProduct.id, name: draft.name, category: draft.category, price: Number(draft.price), shippingFee: Number(draft.shippingFee), inventoryQuantity: Number(draft.inventoryQuantity), shortDescription: draft.shortDescription, description: draft.description, materials: draft.materials.split(",").map((item) => item.trim()).filter(Boolean), dimensions: draft.dimensions, colors: draft.colors.split(",").map((item) => item.trim()).filter(Boolean), sizes, primaryImage: images.primaryImage, colorImages: draft.colorImages, colorPrices, gallery: images.gallery, detailImages: images.detailImages }) });
         const imageData = await imageResponse.json() as { item?: AdminProduct; error?: string };
         if (!imageResponse.ok || !imageData.item) throw new Error(imageData.error ?? "图片保存失败。");
         setPendingPrimaryImages([]);
@@ -409,7 +411,8 @@ export default function AdminProductsPage() {
           <div className="field"><label>详细描述</label><textarea rows={5} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></div>
           <div className="field-row two-col"><div className="field"><label>材质</label><input value={draft.materials} onChange={(event) => setDraft({ ...draft, materials: event.target.value })} placeholder="用逗号分隔" /></div><div className="field"><label>颜色</label><input value={draft.colors} onChange={(event) => setDraft({ ...draft, colors: event.target.value })} placeholder="用逗号分隔" /></div></div>
           {draftColors.length > 0 ? <div className="field"><label>颜色单独价格（MXN）</label><div className="color-primary-images-grid">{draftColors.map((color) => <label className="color-primary-image" key={`${color}-price`}><span>{color}</span><input type="number" min="0.01" step="0.01" value={draft.colorPrices[color] ?? ""} placeholder={`默认 ${draft.price || "价格"}`} onChange={(event) => setDraft((current) => ({ ...current, colorPrices: { ...current.colorPrices, [color]: event.target.value } }))} /></label>)}</div></div> : null}
-          <div className="field-row two-col"><div className="field"><label>尺寸</label><input value={draft.dimensions} onChange={(event) => setDraft({ ...draft, dimensions: event.target.value })} /></div><div className="field"><label>每件商品运费（MXN）</label><input type="number" min="0" step="0.01" value={draft.shippingFee} onChange={(event) => setDraft({ ...draft, shippingFee: event.target.value })} /></div></div>
+          <div className="field-row two-col"><div className="field"><label>尺寸描述</label><input value={draft.dimensions} onChange={(event) => setDraft({ ...draft, dimensions: event.target.value })} placeholder="例如：长 30 × 宽 20 cm" /></div><div className="field"><label>尺码选项</label><input value={draft.sizes} onChange={(event) => setDraft({ ...draft, sizes: event.target.value })} placeholder="例如：S, M, L, XL；不适用可留空" /></div></div>
+          <div className="field"><label>每件商品运费（MXN）</label><input type="number" min="0" step="0.01" value={draft.shippingFee} onChange={(event) => setDraft({ ...draft, shippingFee: event.target.value })} /></div>
           </section>
         </dialog> : null}
       </div>

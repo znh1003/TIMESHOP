@@ -15,6 +15,7 @@ type CatalogRow = {
   materials: string[];
   dimensions: string;
   colors: string[];
+  size_options: string[] | null;
   stock: string;
   inventory_quantity: number | null;
   shipping_fee: number | null;
@@ -59,20 +60,26 @@ export async function getCatalogCategories(): Promise<Category[]> {
 export async function getCatalogProducts(): Promise<Product[]> {
   const supabase = getSupabaseServerClient();
   if (!supabase) return useDemoCatalog ? products : [];
-  const fields = "id, slug, name, category, price, old_price, short_description, description, materials, dimensions, colors, stock, inventory_quantity, shipping_fee, featured, limited, image_url, color_images, color_prices, gallery, detail_images, is_published, created_at";
-  const legacyFields = fields.replace(", color_prices", "");
+  const fields = "id, slug, name, category, price, old_price, short_description, description, materials, dimensions, colors, size_options, stock, inventory_quantity, shipping_fee, featured, limited, image_url, color_images, color_prices, gallery, detail_images, is_published, created_at";
+  const fallbackFields = [
+    fields.replace(", color_prices", ""),
+    fields.replace(", size_options", ""),
+    fields.replace(", size_options, stock", ", stock").replace(", color_prices", ""),
+  ];
   const initialResult = await supabase.from("products").select(fields).eq("is_published", true);
-  let data = initialResult.data as unknown as CatalogRow[] | null;
+  let data: unknown = initialResult.data;
   let error = initialResult.error;
-  if (error?.code === "42703") {
-    const legacyResult = await supabase.from("products").select(legacyFields).eq("is_published", true);
-    data = legacyResult.data as unknown as CatalogRow[] | null;
-    error = legacyResult.error;
+  for (const fallbackFieldsQuery of fallbackFields) {
+    if (error?.code !== "42703") break;
+    const fallbackResult = await supabase.from("products").select(fallbackFieldsQuery).eq("is_published", true);
+    data = fallbackResult.data;
+    error = fallbackResult.error;
   }
+  const rows = data as unknown as CatalogRow[] | null;
   if (error) return useDemoCatalog ? products : [];
-  if (!data) return [];
+  if (!rows) return [];
 
-  return (data ?? []).map((row) => {
+  return rows.map((row) => {
     const fallback = products.find((product) => product.slug === row.slug);
     return {
       ...(fallback ?? { badge: undefined, details: [], oldPrice: undefined }),
@@ -89,6 +96,7 @@ export async function getCatalogProducts(): Promise<Product[]> {
       materials: row.materials,
       dimensions: row.dimensions,
       colors: row.colors,
+      sizes: row.size_options ?? [],
       stock: row.inventory_quantity === null ? row.stock : row.inventory_quantity === 0 ? "Agotado" : row.inventory_quantity <= 5 ? "Pocas unidades" : "En stock",
       inventoryQuantity: row.inventory_quantity ?? undefined,
       shippingFee: Number(row.shipping_fee ?? 0),

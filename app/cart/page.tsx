@@ -34,23 +34,24 @@ export default function CartPage() {
               </div>
             ) : (
               items.map((item) => (
-                <div key={`${item.id}-${item.color ?? "default"}`} className="cart-item">
+                <div key={`${item.id}-${item.color ?? "default"}-${item.size ?? "default"}`} className="cart-item">
                   <img src={item.image} alt={item.name} />
                   <div style={{ flex: 1 }}>
                     <div className="cart-item-head">
                       <strong>{item.name}</strong>
-                      <button className="text-button" onClick={() => removeFromCart(item.id, item.color)}>
+                      <button className="text-button" onClick={() => removeFromCart(item.id, item.color, item.size)}>
                         Eliminar
                       </button>
                     </div>
                     <div className="muted">{formatPrice(item.price)}</div>
                     {item.color ? <div className="muted">Color: {item.color}</div> : null}
+                    {item.size ? <div className="muted">Talla: {item.size}</div> : null}
                     <div className="qty-row" style={{ marginTop: 10 }}>
-                      <button aria-label="Reducir cantidad" onClick={() => updateQuantity(item.id, item.color, -1)}>
+                      <button aria-label="Reducir cantidad" onClick={() => updateQuantity(item.id, item.color, item.size, -1)}>
                         −
                       </button>
                       <span>{item.quantity}</span>
-                      <button aria-label="Aumentar cantidad" onClick={() => updateQuantity(item.id, item.color, 1)}>
+                      <button aria-label="Aumentar cantidad" onClick={() => updateQuantity(item.id, item.color, item.size, 1)}>
                         +
                       </button>
                     </div>
