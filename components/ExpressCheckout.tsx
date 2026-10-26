@@ -61,7 +61,7 @@ export default function ExpressCheckout({ onSuccess, onError, checkoutData, disa
         const currency = "MXN";
         // Load PayPal SDK with applepay and googlepay components
         await loadScript(
-          `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}&components=buttons,applepay,googlepay&enable-funding=card`,
+          `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}&locale=es_MX&components=buttons,applepay,googlepay&enable-funding=card`,
         );
 
         // Load Apple Pay SDK
@@ -99,7 +99,8 @@ export default function ExpressCheckout({ onSuccess, onError, checkoutData, disa
       </div>
       <ApplePayButton onSuccess={onSuccess} onError={onError} checkoutData={checkoutData} disabled={disabled} />
       <GooglePayButton onSuccess={onSuccess} onError={onError} checkoutData={checkoutData} disabled={disabled} />
-      <PayPalOfficialButtons onSuccess={onSuccess} onError={onError} checkoutData={checkoutData} disabled={disabled} />
+      <PayPalOfficialButtons fundingSource="paypal" onSuccess={onSuccess} onError={onError} checkoutData={checkoutData} disabled={disabled} />
+      <PayPalOfficialButtons fundingSource="card" onSuccess={onSuccess} onError={onError} checkoutData={checkoutData} disabled={disabled} />
     </div>
   );
 }

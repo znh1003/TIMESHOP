@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { formatPrice } from "@/data/products";
+import { TrackingLink } from "@/components/tracking-link";
 
 type Order = {
   order_number: string;
@@ -57,7 +58,8 @@ export default function OrderLookupPage() {
       <div className="meta-row"><span>Pago</span><span>{order.payment_status ?? "Pendiente"}</span></div>
       <div className="meta-row"><span>Estado</span><span>{order.order_status ?? "Pendiente"}</span></div>
       <div className="meta-row"><span>Paquetería</span><span>{order.shipping_carrier ?? "Se asignará al enviar"}</span></div>
-      <div className="meta-row"><span>Guía</span><span>{order.tracking_number ?? "Se asignará al enviar"}</span></div>
+      <div className="meta-row"><span>Guía</span><span>{order.tracking_number ? <TrackingLink carrier={order.shipping_carrier} trackingNumber={order.tracking_number} /> : "Se asignará al enviar"}</span></div>
+      {order.shipped_at ? <div className="meta-row"><span>Enviado</span><span>{new Date(order.shipped_at).toLocaleDateString("es-MX")}</span></div> : null}
       <h2 style={{ marginTop: 22 }}>Productos</h2>
       {order.items.map((item, index) => <div className="meta-row" key={`${item.product_name}-${index}`}><span>{item.product_name ?? "Producto"} × {item.quantity ?? 1}</span><span>{formatPrice(Number(item.price ?? 0) * Number(item.quantity ?? 1))}</span></div>)}
     </section> : null}

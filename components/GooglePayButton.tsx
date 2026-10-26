@@ -1,14 +1,49 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useCart } from "@/components/cart-provider";
 import type { CheckoutDraftInput } from "@/components/ExpressCheckout";
 
-declare global {
-  interface Window {
-    google?: any;
-    paypal?: any;
-  }
+type GooglePayPaymentData = {
+  paymentMethodData: unknown;
+  email?: string;
+  shippingAddress?: unknown;
+};
+
+type GooglePayClient = {
+  isReadyToPay: (request: Record<string, unknown>) => Promise<{ result: boolean }>;
+  loadPaymentData: (request: Record<string, unknown>) => Promise<unknown>;
+};
+
+type GooglePaySdk = {
+  payments?: {
+    api?: {
+      PaymentsClient: new (options: {
+        environment: "PRODUCTION" | "TEST";
+        paymentDataCallbacks: {
+          onPaymentAuthorized: (paymentData: GooglePayPaymentData) => Promise<{ transactionState: "SUCCESS" | "ERROR"; error?: { intent: string; message: string } }>;
+        };
+      }) => GooglePayClient;
+    };
+  };
+};
+
+type PayPalGooglePay = {
+  config: () => Promise<{ allowedPaymentMethods: unknown; merchantInfo?: unknown }>;
+  confirmOrder: (request: { orderId: string; paymentMethodData: unknown; email?: string; shippingAddress?: unknown }) => Promise<{ status: string }>;
+  initiatePayerAction: (request: { orderId: string }) => Promise<unknown>;
+};
+
+type PayPalGooglePaySdk = {
+  Googlepay?: () => PayPalGooglePay;
+};
+
+function getGooglePaySdk() {
+  return (window as Window & { google?: GooglePaySdk }).google;
+}
+
+function getPayPalGooglePaySdk() {
+  return (window as Window & { paypal?: PayPalGooglePaySdk }).paypal;
 }
 
 interface GooglePayButtonProps {
@@ -24,53 +59,14 @@ const baseRequest = {
 };
 
 export default function GooglePayButton({ onSuccess, onError, checkoutData, disabled }: GooglePayButtonProps) {
-  const { items, subtotal, shipping, total, couponCode } = useCart();
+  const { items, total, couponCode } = useCart();
   const [isEligible, setIsEligible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [paymentsClient, setPaymentsClient] = useState<any>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkEligibility = async () => {
-      if (!window.google?.payments?.api?.PaymentsClient || !window.paypal?.Googlepay) {
-        return;
-      }
-
-      try {
-        const googlePayConfig = await window.paypal.Googlepay().config();
-        const client = new window.google.payments.api.PaymentsClient({
-          environment: process.env.NEXT_PUBLIC_PAYPAL_ENVIRONMENT === "production" ? "PRODUCTION" : "TEST",
-          paymentDataCallbacks: {
-            onPaymentAuthorized: (paymentData: any) => processPayment(paymentData),
-          },
-        });
-
-        const isReadyToPayRequest = {
-          ...baseRequest,
-          allowedPaymentMethods: googlePayConfig.allowedPaymentMethods,
-        };
-
-        const response = await client.isReadyToPay(isReadyToPayRequest);
-        if (!cancelled && response.result) {
-          setPaymentsClient(client);
-          setIsEligible(true);
-        }
-      } catch {
-        // Google Pay not eligible
-      }
-    };
-
-    checkEligibility();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [paymentsClient, setPaymentsClient] = useState<GooglePayClient | null>(null);
 
   const processPayment = useCallback(
-    async (paymentData: any) => {
+    async (paymentData: GooglePayPaymentData) => {
       try {
-        // Create order on server
         const orderId = `ts-${Date.now()}`;
         const createResponse = await fetch("/api/paypal/create-order", {
           method: "POST",
@@ -91,8 +87,9 @@ export default function GooglePayButton({ onSuccess, onError, checkoutData, disa
         const createData = await createResponse.json();
         const paypalOrderId = createData.id || orderId;
 
-        // Confirm order with Google Pay
-        const confirmResult = await window.paypal.Googlepay().confirmOrder({
+        const googlePay = getPayPalGooglePaySdk()?.Googlepay?.();
+        if (!googlePay) throw new Error("Google Pay no está disponible.");
+        const confirmResult = await googlePay.confirmOrder({
           orderId: paypalOrderId,
           paymentMethodData: paymentData.paymentMethodData,
           email: paymentData.email,
@@ -100,14 +97,13 @@ export default function GooglePayButton({ onSuccess, onError, checkoutData, disa
         });
 
         if (confirmResult.status === "PAYER_ACTION_REQUIRED") {
-          await window.paypal.Googlepay().initiatePayerAction({ orderId: paypalOrderId });
+          await googlePay.initiatePayerAction({ orderId: paypalOrderId });
         }
 
         if (confirmResult.status !== "APPROVED" && confirmResult.status !== "PAYER_ACTION_REQUIRED") {
           throw new Error("El pago no fue aprobado");
         }
 
-        // Capture order
         const captureResponse = await fetch("/api/paypal/capture-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -133,13 +129,55 @@ export default function GooglePayButton({ onSuccess, onError, checkoutData, disa
     },
     [checkoutData, couponCode, items, onSuccess, onError],
   );
+  const processPaymentRef = useRef(processPayment);
+
+  useEffect(() => {
+    processPaymentRef.current = processPayment;
+  }, [processPayment]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkEligibility = async () => {
+      const google = getGooglePaySdk();
+      const paypalGooglePay = getPayPalGooglePaySdk()?.Googlepay;
+      const PaymentsClient = google?.payments?.api?.PaymentsClient;
+      if (!PaymentsClient || !paypalGooglePay) return;
+
+      try {
+        const googlePayConfig = await paypalGooglePay().config();
+        const client = new PaymentsClient({
+          environment: process.env.NEXT_PUBLIC_PAYPAL_ENVIRONMENT === "production" ? "PRODUCTION" : "TEST",
+          paymentDataCallbacks: {
+            onPaymentAuthorized: (paymentData: GooglePayPaymentData) => processPaymentRef.current(paymentData),
+          },
+        });
+        const response = await client.isReadyToPay({
+          ...baseRequest,
+          allowedPaymentMethods: googlePayConfig.allowedPaymentMethods,
+        });
+        if (!cancelled && response.result) {
+          setPaymentsClient(client);
+          setIsEligible(true);
+        }
+      } catch {
+        if (!cancelled) setIsEligible(false);
+      }
+    };
+
+    void checkEligibility();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleClick = useCallback(async () => {
-    if (!paymentsClient || !window.paypal?.Googlepay) return;
+    const paypalGooglePay = getPayPalGooglePaySdk()?.Googlepay;
+    if (!paymentsClient || !paypalGooglePay) return;
 
     setLoading(true);
     try {
-      const googlePayConfig = await window.paypal.Googlepay().config();
+      const googlePayConfig = await paypalGooglePay().config();
 
       const paymentDataRequest = {
         ...baseRequest,
@@ -157,7 +195,8 @@ export default function GooglePayButton({ onSuccess, onError, checkoutData, disa
 
       await paymentsClient.loadPaymentData(paymentDataRequest);
     } catch (err) {
-      if ((err as any)?.statusCode !== "CANCELED") {
+      const statusCode = typeof err === "object" && err !== null && "statusCode" in err ? err.statusCode : undefined;
+      if (statusCode !== "CANCELED") {
         onError(err instanceof Error ? err.message : "No se pudo iniciar Google Pay");
       }
     } finally {

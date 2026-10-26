@@ -43,9 +43,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="container-shell" style={{ padding: "24px 0 40px" }}>
       <div className="admin-shell">
         <aside className="admin-sidebar">
-          <div className="admin-brand">TIMESHOP 管理后台</div>
+          <div className="admin-sidebar-inner">
+            <div className="admin-brand">TIMESHOP 管理后台</div>
+            <button
+              className="ghost-button"
+              onClick={async () => {
+                await fetch("/api/admin/logout", { method: "POST" });
+                router.push("/admin/login");
+              }}
+            >
+              退出
+            </button>
+          </div>
           <nav className="admin-nav">
             <Link href="/admin">数据概览</Link>
+            <Link href="/admin/slides">首页轮播</Link>
             <Link href="/admin/products">商品管理</Link>
             <Link href="/admin/coupons">优惠码</Link>
             <Link href="/admin/orders">订单管理</Link>
@@ -55,16 +67,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/admin/messages">客户消息</Link>
             <Link href="/admin/audit">操作记录</Link>
           </nav>
-          <button
-            className="ghost-button"
-            onClick={async () => {
-              await fetch("/api/admin/logout", { method: "POST" });
-              router.push("/admin/login");
-            }}
-            style={{ width: "100%", marginTop: "16px" }}
-          >
-            退出登录
-          </button>
         </aside>
         <div className="admin-content">{children}</div>
       </div>

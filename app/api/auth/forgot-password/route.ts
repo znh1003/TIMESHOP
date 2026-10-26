@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       ok: true,
       message: "Si el email existe, recibirás un enlace para restablecer tu contraseña.",
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "No se pudo enviar el enlace." },
       { status: 500 },

@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useCart } from "@/components/cart-provider";
 import { formatPrice } from "@/data/products";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import ExpressCheckout, { type CheckoutDraftInput } from "@/components/ExpressCheckout";
 import { AddressPasteAssist } from "@/components/address-paste-assist";
 import type { AddressFields } from "@/lib/address-parser";
+import { metaEvents } from "@/components/MetaPixel";
 
 export default function CheckoutPage() {
   const { items, subtotal, shipping, discount, couponCode, total, clearCart } = useCart();
@@ -27,6 +28,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [captureMessage, setCaptureMessage] = useState("");
   const [expressError, setExpressError] = useState("");
+  const checkoutTracked = useRef(false);
   const router = useRouter();
   const checkoutData: CheckoutDraftInput = {
     customerName: `${form.name} ${form.lastName}`.trim(),
@@ -39,6 +41,8 @@ export default function CheckoutPage() {
   const handleExpressSuccess = (orderId: string) => {
     clearCart();
     setCaptureMessage("¡Pago confirmado! Gracias por tu pedido.");
+    // Meta Pixel: Purchase
+    metaEvents.purchase(total, "MXN", { order_id: orderId });
     router.replace(`/checkout?status=confirmed&order=${orderId}`);
   };
 
@@ -70,6 +74,8 @@ export default function CheckoutPage() {
         if (!response.ok) throw new Error("Payment confirmation failed");
         clearCart();
         setCaptureMessage("Pago confirmado. Gracias por tu pedido.");
+        // Meta Pixel: Purchase
+        metaEvents.purchase(total, "MXN", { order_id: paypalOrderId });
         router.replace("/checkout?status=confirmed");
       } catch {
         setCaptureMessage("No pudimos confirmar el pago todavía. Contacta con soporte antes de intentarlo de nuevo.");
@@ -79,7 +85,19 @@ export default function CheckoutPage() {
     };
 
     void captureOrder();
-  }, [clearCart, router]);
+  }, [clearCart, router, total]);
+
+  // Meta Pixel: InitiateCheckout
+  useEffect(() => {
+    if (!cartIsEmpty && !checkoutTracked.current) {
+      checkoutTracked.current = true;
+      metaEvents.initiateCheckout({
+        value: total,
+        currency: "MXN",
+        num_items: items.reduce((sum, item) => sum + item.quantity, 0),
+      });
+    }
+  }, [cartIsEmpty, items, total]);
 
   const handlePayPalCheckout = async (event: FormEvent) => {
     event.preventDefault();

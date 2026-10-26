@@ -1,4 +1,5 @@
 import { categories as fallbackCategories, products, type Category, type Product } from "@/data/products";
+import { createAdminDataClient } from "@/lib/admin-auth";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 type CatalogRow = {
@@ -7,6 +8,7 @@ type CatalogRow = {
   name: string;
   category: Product["category"];
   price: number;
+  created_at: string;
   old_price: number | null;
   short_description: string;
   description: string;
@@ -57,7 +59,7 @@ export async function getCatalogCategories(): Promise<Category[]> {
 export async function getCatalogProducts(): Promise<Product[]> {
   const supabase = getSupabaseServerClient();
   if (!supabase) return useDemoCatalog ? products : [];
-  const fields = "id, slug, name, category, price, old_price, short_description, description, materials, dimensions, colors, stock, inventory_quantity, shipping_fee, featured, limited, image_url, color_images, color_prices, gallery, detail_images, is_published";
+  const fields = "id, slug, name, category, price, old_price, short_description, description, materials, dimensions, colors, stock, inventory_quantity, shipping_fee, featured, limited, image_url, color_images, color_prices, gallery, detail_images, is_published, created_at";
   const legacyFields = fields.replace(", color_prices", "");
   const initialResult = await supabase.from("products").select(fields).eq("is_published", true);
   let data = initialResult.data as unknown as CatalogRow[] | null;
@@ -80,6 +82,7 @@ export async function getCatalogProducts(): Promise<Product[]> {
       name: row.name,
       category: row.category,
       price: Number(row.price),
+      createdAt: row.created_at,
       oldPrice: row.old_price === null ? undefined : Number(row.old_price),
       shortDescription: row.short_description,
       description: row.description,
@@ -98,4 +101,37 @@ export async function getCatalogProducts(): Promise<Product[]> {
       detailImages: row.detail_images ?? [],
     };
   });
+}
+
+export async function getCatalogPopularProductIds(): Promise<{ ids: string[]; available: boolean }> {
+  const database = createAdminDataClient();
+  if (!database) return { ids: [], available: false };
+
+  const quantities = new Map<string, number>();
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await database
+      .from("order_items")
+      .select("product_id, quantity, orders!inner(payment_status)")
+      .eq("orders.payment_status", "Pagado")
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      console.error("Could not load paid order items for product popularity.", error);
+      return { ids: [], available: false };
+    }
+
+    for (const item of data ?? []) {
+      if (!item.product_id) continue;
+      const productId = String(item.product_id);
+      quantities.set(productId, (quantities.get(productId) ?? 0) + Number(item.quantity ?? 0));
+    }
+
+    if ((data?.length ?? 0) < pageSize) break;
+  }
+
+  return {
+    ids: [...quantities.entries()].sort((first, second) => second[1] - first[1]).map(([id]) => id),
+    available: true,
+  };
 }

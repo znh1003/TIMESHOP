@@ -52,6 +52,8 @@ El acceso al panel se concede por usuario de Supabase, siguiendo [docs/admin-acc
 
 Antes de activar pagos reales, configura en PayPal el webhook `PAYMENT.CAPTURE.COMPLETED` y los eventos `PAYMENT.REFUND.*` apuntando a `https://tu-dominio.com/api/paypal/webhook`. Ejecuta todas las migraciones de `supabase/migrations` y verifica que `GET /api/health` responda `200` antes de publicar.
 
+Para administrar el carrusel de inicio, ejecuta también la migración `20261022120000_create_homepage_slides.sql`. Después, las cuentas con rol `admin` u `operations` pueden subir y ordenar imágenes desde `/admin/slides`.
+
 ## Estado actual
 
 El proyecto ya incluye:

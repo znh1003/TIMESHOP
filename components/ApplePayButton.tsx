@@ -8,21 +8,39 @@ declare class ApplePaySession {
   static canMakePayments(): boolean;
   static STATUS_SUCCESS: number;
   static STATUS_FAILURE: number;
-  constructor(version: number, request: any);
+  constructor(version: number, request: Record<string, unknown>);
   begin(): void;
-  completeMerchantValidation(merchantSession: any): void;
+  completeMerchantValidation(merchantSession: unknown): void;
   completePayment(status: number): void;
   abort(): void;
-  onvalidatemerchant: ((event: any) => void) | null;
-  onpaymentauthorized: ((event: any) => void) | null;
+  onvalidatemerchant: ((event: { validationURL: string }) => void) | null;
+  onpaymentauthorized: ((event: { payment: { token: unknown; billingContact: unknown } }) => void) | null;
   oncancel: (() => void) | null;
 }
 
 declare global {
   interface Window {
     ApplePaySession?: typeof ApplePaySession;
-    paypal?: any;
   }
+}
+
+type PayPalApplePay = {
+  config: () => Promise<{
+    isEligible?: boolean;
+    countryCode?: string;
+    merchantCapabilities?: string[];
+    supportedNetworks?: string[];
+  }>;
+  validateMerchant: (request: { validationUrl: string; displayName: string }) => Promise<{ merchantSession: unknown }>;
+  confirmOrder: (request: { orderId: string; token: unknown; billingContact: unknown }) => Promise<{ status: string }>;
+};
+
+type PayPalApplePaySdk = {
+  Applepay?: () => PayPalApplePay;
+};
+
+function getPayPalApplePaySdk() {
+  return (window as Window & { paypal?: PayPalApplePaySdk }).paypal;
 }
 
 interface ApplePayButtonProps {
@@ -44,11 +62,12 @@ export default function ApplePayButton({ onSuccess, onError, checkoutData, disab
       if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) {
         return;
       }
-      if (!window.paypal?.Applepay) {
+      const applepayFactory = getPayPalApplePaySdk()?.Applepay;
+      if (!applepayFactory) {
         return;
       }
       try {
-        const config = await window.paypal.Applepay().config();
+        const config = await applepayFactory().config();
         if (!cancelled && config.isEligible) {
           setIsEligible(true);
         }
@@ -64,11 +83,13 @@ export default function ApplePayButton({ onSuccess, onError, checkoutData, disab
   }, []);
 
   const handlePayment = useCallback(async () => {
-    if (!window.ApplePaySession || !window.paypal?.Applepay) return;
+    const ApplePaySessionConstructor = (window as Window & { ApplePaySession?: typeof ApplePaySession }).ApplePaySession;
+    const applepayFactory = getPayPalApplePaySdk()?.Applepay;
+    if (!ApplePaySessionConstructor || !applepayFactory) return;
 
     setLoading(true);
     try {
-      const applepay = window.paypal.Applepay();
+      const applepay = applepayFactory();
       const config = await applepay.config();
 
       const paymentRequest = {
@@ -97,22 +118,22 @@ export default function ApplePayButton({ onSuccess, onError, checkoutData, disab
         ],
       };
 
-      const session = new ApplePaySession(4, paymentRequest);
+      const session = new ApplePaySessionConstructor(4, paymentRequest);
 
-      session.onvalidatemerchant = async (event: any) => {
+      session.onvalidatemerchant = async (event) => {
         try {
           const validateResult = await applepay.validateMerchant({
             validationUrl: event.validationURL,
             displayName: "TIMESHOP",
           });
           session.completeMerchantValidation(validateResult.merchantSession);
-        } catch (err) {
+        } catch {
           session.abort();
           onError("Falló la validación de Apple Pay.");
         }
       };
 
-      session.onpaymentauthorized = async (event: any) => {
+      session.onpaymentauthorized = async (event) => {
         try {
           // Create order on server
           const orderId = `ts-${Date.now()}`;
@@ -157,10 +178,10 @@ export default function ApplePayButton({ onSuccess, onError, checkoutData, disab
             throw new Error("No se pudo capturar el pago");
           }
 
-          session.completePayment(ApplePaySession.STATUS_SUCCESS);
+          session.completePayment(ApplePaySessionConstructor.STATUS_SUCCESS);
           onSuccess(paypalOrderId);
         } catch (err) {
-          session.completePayment(ApplePaySession.STATUS_FAILURE);
+          session.completePayment(ApplePaySessionConstructor.STATUS_FAILURE);
           onError(err instanceof Error ? err.message : "Error en el pago con Apple Pay");
         }
       };

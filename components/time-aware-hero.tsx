@@ -76,17 +76,13 @@ export function TimeAwareHero() {
       <div className="hero-overlay" />
       <div className="container-shell hero-content">
         <div className="hero-copy">
-          <span className="eyebrow">TIMESHOP / 2026 EDITION</span>
-          <h1>Diseño premium <span>para vivir diferente.</span></h1>
-          <p>Descubre piezas cuidadosamente seleccionadas para transformar tus espacios y tu día a día.</p>
+          <span className="eyebrow subdued">TIMESHOP · DISEÑO COTIDIANO</span>
+          <h1>Diseño para vivir mejor.</h1>
+          <p>Piezas esenciales para tu día a día.</p>
           <div className="hero-actions">
             <Link href="/shop" className="primary-button">Explorar colección</Link>
-            <Link href="#featured-collection" className="secondary-button">Ver más</Link>
           </div>
         </div>
-        <a href="#featured-collection" className="scroll-indicator" aria-label="Ir a las colecciones">
-          <span>Descubre más</span><span aria-hidden="true">↓</span>
-        </a>
       </div>
     </section>
   );

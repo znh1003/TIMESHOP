@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ ok: true, user: { email: data.user.email, name: data.user.user_metadata.full_name ?? null } });
     cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
     return response;
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "No se pudo iniciar sesión." },
       { status: 500 },

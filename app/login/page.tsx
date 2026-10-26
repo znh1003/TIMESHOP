@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useState, type FormEvent } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,7 +14,8 @@ export default function LoginPage() {
   const [resending, setResending] = useState(false);
 
   useEffect(() => {
-    setNotice(new URLSearchParams(window.location.search).get("notice") ?? "");
+    const noticeFromUrl = new URLSearchParams(window.location.search).get("notice") ?? "";
+    if (noticeFromUrl) startTransition(() => setNotice(noticeFromUrl));
   }, []);
 
   const resendConfirmation = async () => {

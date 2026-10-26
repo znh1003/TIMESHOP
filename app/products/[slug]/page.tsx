@@ -8,6 +8,7 @@ import { useCart } from "@/components/cart-provider";
 import { use, useEffect, useState } from "react";
 import { TrustSignals } from "@/components/trust-signals";
 import { useWishlist } from "@/components/wishlist";
+import { metaEvents } from "@/components/MetaPixel";
 
 function imageForColor(product: Product, color: string) {
   return product.colorImages?.[color] ?? product.gallery[product.colors.indexOf(color)] ?? product.image;
@@ -37,6 +38,14 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         setProduct(databaseProduct);
         setActiveImage(imageForColor(databaseProduct, databaseProduct.colors[0] ?? ""));
         setSelectedColor(databaseProduct.colors[0] ?? "");
+        // Meta Pixel: ViewContent
+        metaEvents.viewContent({
+          content_name: databaseProduct.name,
+          content_ids: [databaseProduct.databaseId ?? databaseProduct.id],
+          content_type: "product",
+          value: databaseProduct.price,
+          currency: "MXN",
+        });
       }
     }).catch(() => undefined).finally(() => setProductLoaded(true));
   }, [resolvedParams.slug]);
@@ -114,13 +123,22 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
           <div className="meta-row"><span>Materiales</span><span>{product.materials.join(", ")}</span></div>
           <div className="meta-row"><span>Dimensiones</span><span>{product.dimensions}</span></div>
           <div className="meta-row"><span>Envío</span><span>{product.shippingFee ? formatPrice(product.shippingFee) : "Gratis"}</span></div>
-          <div className="meta-row"><span>Entrega estimada</span><span>7-15 días hábiles</span></div>
+          <div className="meta-row"><span>Entrega estimada</span><span>10-25 días hábiles</span></div>
           <div className="detail-actions">
             <button
               className="primary-button"
               disabled={isOutOfStock}
               onClick={() => {
                 for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: selectedPrice, image: imageForColor(product, selectedColor), color: selectedColor, shippingFee: product.shippingFee });
+                // Meta Pixel: AddToCart
+                metaEvents.addToCart({
+                  content_name: product.name,
+                  content_ids: [product.databaseId ?? product.id],
+                  content_type: "product",
+                  value: selectedPrice * quantity,
+                  currency: "MXN",
+                  quantity,
+                });
               }}
             >
               {isOutOfStock ? "Agotado" : "Añadir al carrito"}
@@ -130,6 +148,15 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               disabled={isOutOfStock}
               onClick={() => {
                 for (let index = 0; index < quantity; index += 1) addToCart({ id: product.databaseId ?? product.id, slug: product.slug, name: product.name, price: selectedPrice, image: imageForColor(product, selectedColor), color: selectedColor, shippingFee: product.shippingFee });
+                // Meta Pixel: AddToCart
+                metaEvents.addToCart({
+                  content_name: product.name,
+                  content_ids: [product.databaseId ?? product.id],
+                  content_type: "product",
+                  value: selectedPrice * quantity,
+                  currency: "MXN",
+                  quantity,
+                });
                 router.push("/checkout");
               }}
             >

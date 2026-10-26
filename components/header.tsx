@@ -6,9 +6,9 @@ import { formatPrice, type Product } from "@/data/products";
 import { useEffect, useState } from "react";
 
 const desktopNav = [
-  { href: "/shop", label: "Tienda" },
-  { href: "/shop", label: "Colecciones" },
-  { href: "/shop", label: "Novedades" },
+  { href: "/shop", label: "Comprar" },
+  { href: "/#featured-collection", label: "Colecciones" },
+  { href: "/#productos-destacados", label: "Destacados" },
   { href: "/about", label: "Nosotros" },
 ];
 

@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { formatPrice } from "@/data/products";
 import Link from "next/link";
+import { TrackingLink } from "@/components/tracking-link";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -27,7 +28,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <div className="meta-row"><span>Total</span><span>{formatPrice(Number(order.total))}</span></div>
         <div className="meta-row"><span>Fecha</span><span>{new Date(order.created_at).toLocaleDateString("es-MX")}</span></div>
         <div className="meta-row"><span>Paquetería</span><span>{order.shipping_carrier ?? "Se asignará al enviar el pedido"}</span></div>
-        <div className="meta-row"><span>Guía</span><span>{order.tracking_number ?? "Se asignará al enviar el pedido"}</span></div>
+        <div className="meta-row"><span>Guía</span><span>{order.tracking_number ? <TrackingLink carrier={order.shipping_carrier} trackingNumber={order.tracking_number} /> : "Se asignará al enviar el pedido"}</span></div>
         {order.shipped_at ? <div className="meta-row"><span>Enviado</span><span>{new Date(order.shipped_at).toLocaleDateString("es-MX")}</span></div> : null}
       </div>
 

@@ -2,7 +2,7 @@
 
 import { formatPrice } from "@/lib/admin-data";
 import { useAdminResource } from "@/components/admin-data-loader";
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +59,7 @@ async function prepareImageForUpload(file: File) {
 export default function AdminProductsPage() {
   const { items: products, loading, error, setItems } = useAdminResource<AdminProduct>("products");
   const { items: categories, error: categoriesError, setItems: setCategories } = useAdminResource<AdminCategory>("categories");
+  const editorDialogRef = useRef<HTMLDialogElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({ name: "", category: "", price: "", shippingFee: "0", inventoryQuantity: "", shortDescription: "", description: "", materials: "", dimensions: "", colors: "", primaryImage: "", colorImages: {} as Record<string, string>, colorPrices: {} as Record<string, string>, gallery: [] as string[], detailImages: [] as string[] });
@@ -70,6 +71,29 @@ export default function AdminProductsPage() {
   const [pendingDetailImages, setPendingDetailImages] = useState<File[]>([]);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
+  const [categoryExpanded, setCategoryExpanded] = useState(false);
+  const [expandedProductCategories, setExpandedProductCategories] = useState<string[]>([]);
+  const editorOpen = creating || editingId !== null;
+  useEffect(() => {
+    const dialog = editorDialogRef.current;
+    if (!editorOpen || !dialog) return;
+    if (!dialog.open) dialog.showModal();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (dialog.open) dialog.close();
+    };
+  }, [editorOpen]);
+  const productGroups = Array.from(new Set(products.map((product) => product.category || "uncategorized"))).map((categorySlug) => ({
+    slug: categorySlug,
+    name: categories.find((category) => category.slug === categorySlug)?.name ?? (categorySlug === "uncategorized" ? "未分类" : categorySlug),
+    products: products.filter((product) => (product.category || "uncategorized") === categorySlug),
+  }));
+  const isProductCategoryExpanded = (categorySlug: string) => expandedProductCategories.includes(categorySlug);
+  const toggleProductCategory = (categorySlug: string) => {
+    setExpandedProductCategories((current) => current.includes(categorySlug) ? current.filter((slug) => slug !== categorySlug) : [...current, categorySlug]);
+  };
   const toggleFeatured = async (id: string, featured: boolean) => {
     const response = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, featured: !featured }) });
     if (response.ok) setItems((current) => current.map((product) => product.id === id ? { ...product, featured: !featured } : product));
@@ -84,6 +108,8 @@ export default function AdminProductsPage() {
     setCreating(false);
     setEditingId(product.id);
     setSaveError("");
+    setPendingPrimaryImages([]);
+    setPendingDetailImages([]);
     const primaryImage = product.image_url || gallery[0] || "";
     const detailImages = toStringList(product.detail_images);
     setDraft({ name: product.name, category: product.category ?? "", price: String(product.price), shippingFee: String(product.shipping_fee ?? 0), inventoryQuantity: String(product.inventory_quantity ?? 0), shortDescription: product.short_description ?? "", description: product.description ?? "", materials: materials.join(", "), dimensions: product.dimensions ?? "", colors: colors.join(", "), primaryImage, colorImages, colorPrices, gallery: gallery.filter((image) => image !== primaryImage), detailImages });
@@ -93,7 +119,18 @@ export default function AdminProductsPage() {
     setCreating(true);
     setEditingId(null);
     setSaveError("");
+    setPendingPrimaryImages([]);
+    setPendingDetailImages([]);
     setDraft({ name: "", category: "", price: "", shippingFee: "0", inventoryQuantity: "0", shortDescription: "", description: "", materials: "", dimensions: "", colors: "", primaryImage: "", colorImages: {}, colorPrices: {}, gallery: [], detailImages: [] });
+  };
+
+  const closeEditor = () => {
+    if (saving || uploading) return;
+    setCreating(false);
+    setEditingId(null);
+    setPendingPrimaryImages([]);
+    setPendingDetailImages([]);
+    setSaveError("");
   };
 
   const removeImage = (imageIndex: number) => {
@@ -268,91 +305,82 @@ export default function AdminProductsPage() {
         <button className="primary-button" type="button" onClick={beginCreating} disabled={creating || editingId !== null}>新增商品</button>
       </div>
 
-      <section className="admin-panel" style={{ marginBottom: 18 }}>
-        <h2 style={{ marginTop: 0 }}>商品分类</h2>
-        <div className="field-row category-create-row">
-          <div className="field"><label htmlFor="new-category">新建分类</label><input id="new-category" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="例如：配件" /></div>
-          <button className="small-button category-create-button" type="button" onClick={() => void createCategory()} disabled={categorySaving || !newCategoryName.trim()}>{categorySaving ? "正在保存..." : "添加分类"}</button>
-        </div>
-        <div className="filter-bar" aria-label="已有商品分类">
-          {categories.map((category) => <span className="filter-chip" key={category.id}>{category.name} <button type="button" onClick={() => void deleteCategory(category)} aria-label={`删除 ${category.name}`}>×</button></span>)}
-        </div>
-        {categoriesError ? <p className="error-box">{categoriesError}</p> : null}
+      <section className="admin-panel admin-category-panel" style={{ marginBottom: 18 }}>
+        <button type="button" className="admin-category-toggle" onClick={() => setCategoryExpanded((v) => !v)}>
+          <span>商品分类（{categories.length}）</span>
+          <span>{categoryExpanded ? "收起 ▲" : "展开 ▼"}</span>
+        </button>
+        {categoryExpanded ? <div className="admin-category-body">
+          <div className="field-row category-create-row">
+            <div className="field"><label htmlFor="new-category">新建分类</label><input id="new-category" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="例如：配件" /></div>
+            <button className="small-button category-create-button" type="button" onClick={() => void createCategory()} disabled={categorySaving || !newCategoryName.trim()}>{categorySaving ? "正在保存..." : "添加分类"}</button>
+          </div>
+          <div className="filter-bar" aria-label="已有商品分类">
+            {categories.map((category) => <span className="filter-chip" key={category.id}>{category.name} <button type="button" onClick={() => void deleteCategory(category)} aria-label={`删除 ${category.name}`}>×</button></span>)}
+          </div>
+          {categoriesError ? <p className="error-box">{categoriesError}</p> : null}
+        </div> : null}
       </section>
 
       <div className="admin-panel">
-        <div className="table-wrap product-admin-table">
-          <table>
-            <thead>
-              <tr>
-                <th>商品</th>
-                <th>图片</th>
-                <th>分类</th>
-                <th>价格</th>
-                <th>库存状态</th>
-                <th>库存数量</th>
-                <th>状态</th>
-                <th>精选</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {creating ? <tr>
-                <td><input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} aria-label="商品名称" /></td>
-                <td>保存后上传主图和详情图。</td>
-                <td><select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} aria-label="商品分类"><option value="">请选择</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select></td>
-                <td><input type="number" min="0.01" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} aria-label="商品价格" /></td>
-                <td>创建后计算</td>
-                <td><input type="number" min="0" step="1" value={draft.inventoryQuantity} onChange={(event) => setDraft({ ...draft, inventoryQuantity: event.target.value })} aria-label="可售库存" /></td>
-                <td><span className="status-pill">草稿</span></td><td>-</td>
-                <td><button className="small-button" onClick={() => saveProduct()} disabled={saving}>{saving ? "正在保存" : "创建"}</button><button className="small-button" onClick={() => setCreating(false)} disabled={saving}>取消</button></td>
-              </tr> : null}
-              {products.map((product) => (
+        {productGroups.map((group) => {
+          const expanded = isProductCategoryExpanded(group.slug);
+          return <section className="admin-product-category" key={group.slug}>
+            <button type="button" className="admin-category-toggle" aria-expanded={expanded} onClick={() => toggleProductCategory(group.slug)}>
+              <span>{group.name}（{group.products.length}）</span><span>{expanded ? "收起 ▲" : "展开 ▼"}</span>
+            </button>
+            {expanded ? <>
+              <div className="table-wrap product-admin-table">
+                <table>
+                  <thead><tr><th>商品</th><th>图片</th><th>分类</th><th>价格</th><th>库存状态</th><th>库存数量</th><th>状态</th><th>精选</th><th>操作</th></tr></thead>
+                  <tbody>{group.products.map((product) => (
                 <tr key={product.id}>
-                  <td>{editingId === product.id ? <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} aria-label="商品名称" /> : <><div>{product.name}</div><button className="small-button" type="button" style={{ marginTop: 8 }} onClick={() => beginEditing(product)} disabled={creating}>编辑</button></>}</td>
+                  <td><div>{product.name}</div><button className="small-button" type="button" style={{ marginTop: 8 }} onClick={() => beginEditing(product)}>编辑</button></td>
                   <td>{product.image_url ? <img className="admin-product-thumb" src={product.image_url} alt="" /> : "暂无图片"}</td>
-                  <td>{editingId === product.id ? <select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} aria-label="商品分类"><option value="">请选择</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select> : product.category}</td>
-                  <td>{editingId === product.id ? <input type="number" min="0.01" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} aria-label="商品价格" /> : formatPrice(product.price)}</td>
+                  <td>{product.category}</td>
+                  <td>{formatPrice(product.price)}</td>
                   <td>{product.inventory_quantity === 0 ? "已售罄" : (product.inventory_quantity ?? 0) <= 5 ? "库存不足" : "有库存"}</td>
-                  <td>{editingId === product.id ? <input type="number" min="0" step="1" value={draft.inventoryQuantity} onChange={(event) => setDraft({ ...draft, inventoryQuantity: event.target.value })} aria-label="可售库存" /> : product.inventory_quantity ?? 0}</td>
+                  <td>{product.inventory_quantity ?? 0}</td>
                   <td><span className="status-pill">{product.is_published ? "已发布" : "草稿"}</span></td>
                   <td>
                     <button className="small-button" onClick={() => toggleFeatured(product.id, product.featured)}>
                       {product.featured ? "取消精选" : "设为精选"}
                     </button>
                   </td>
-                  <td>{editingId === product.id ? <><button className="small-button" onClick={() => saveProduct(product.id)} disabled={saving}>{saving ? "正在保存" : "保存"}</button><button className="small-button" onClick={() => setEditingId(null)} disabled={saving}>取消</button></> : <><button className="small-button" onClick={() => void togglePublished(product)} disabled={creating || publishingId === product.id}>{publishingId === product.id ? "正在更新..." : product.is_published ? "下架" : "发布"}</button><button className="small-button" onClick={() => deleteProduct(product)} disabled={creating || publishingId === product.id}>删除</button></>}</td>
+                  <td><button className="small-button" type="button" onClick={() => void togglePublished(product)} disabled={publishingId === product.id}>{publishingId === product.id ? "正在更新..." : product.is_published ? "下架" : "发布"}</button><button className="small-button" type="button" onClick={() => void deleteProduct(product)} disabled={publishingId === product.id}>删除</button></td>
                 </tr>
-              ))}
-              {!loading && products.length === 0 ? <tr><td colSpan={9}>暂无商品。</td></tr> : null}
-            </tbody>
-          </table>
-        </div>
-        <div className="mobile-admin-product-list">
-          {products.map((product) => {
-            const isEditing = editingId === product.id;
-            return <article className="mobile-admin-product" key={`mobile-${product.id}`}>
-              <div className="mobile-admin-product-head">
+              ))}</tbody>
+                </table>
+              </div>
+              <div className="mobile-admin-product-list">
+          {group.products.map((product) => {
+            return <details className="mobile-admin-product" key={`mobile-${product.id}`}>
+              <summary className="mobile-admin-product-summary">
+                <div className="mobile-admin-product-head">
                 {product.image_url ? <img src={product.image_url} alt="" /> : <div className="mobile-admin-product-placeholder">暂无图片</div>}
                 <div>
-                  {isEditing ? <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} aria-label="商品名称" /> : <strong>{product.name}</strong>}
-                  <span>{isEditing ? <select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} aria-label="商品分类"><option value="">请选择</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select> : product.category}</span>
+                  <strong>{product.name}</strong>
+                  <span>{product.category}</span>
                   <span className="status-pill">{product.is_published ? "已发布" : "草稿"}</span>
                 </div>
-              </div>
-              <div className="mobile-admin-product-data">
-                <label>价格{isEditing ? <input type="number" min="0.01" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} aria-label="商品价格" /> : <strong>{formatPrice(product.price)}</strong>}</label>
-                <label>库存数量{isEditing ? <input type="number" min="0" step="1" value={draft.inventoryQuantity} onChange={(event) => setDraft({ ...draft, inventoryQuantity: event.target.value })} aria-label="可售库存" /> : <strong>{product.inventory_quantity ?? 0}</strong>}</label>
-              </div>
-              {isEditing ? <div className="mobile-admin-product-actions"><button className="small-button" onClick={() => saveProduct(product.id)} disabled={saving}>{saving ? "正在保存..." : "保存"}</button><button className="ghost-button" onClick={() => setEditingId(null)} disabled={saving}>取消</button></div> : <div className="mobile-admin-product-actions"><button className="small-button" onClick={() => beginEditing(product)} disabled={creating || publishingId === product.id}>编辑</button><button className="ghost-button" onClick={() => void togglePublished(product)} disabled={creating || publishingId === product.id}>{publishingId === product.id ? "正在更新..." : product.is_published ? "下架" : "发布"}</button><button className="ghost-button" onClick={() => toggleFeatured(product.id, product.featured)} disabled={creating || publishingId === product.id}>{product.featured ? "取消精选" : "设为精选"}</button><button className="ghost-button mobile-admin-delete" onClick={() => deleteProduct(product)} disabled={creating || publishingId === product.id}>删除</button></div>}
-            </article>;
+                </div>
+                <span className="mobile-admin-product-chevron" aria-hidden="true" />
+                <span className="mobile-admin-product-summary-data"><span>{formatPrice(product.price)}</span><span>库存 {product.inventory_quantity ?? 0}</span></span>
+              </summary>
+              <div className="mobile-admin-product-actions"><button className="small-button" type="button" onClick={() => beginEditing(product)}>编辑</button><button className="ghost-button" type="button" onClick={() => void togglePublished(product)} disabled={publishingId === product.id}>{publishingId === product.id ? "正在更新..." : product.is_published ? "下架" : "发布"}</button><button className="ghost-button" type="button" onClick={() => void toggleFeatured(product.id, product.featured)} disabled={publishingId === product.id}>{product.featured ? "取消精选" : "设为精选"}</button><button className="ghost-button mobile-admin-delete" type="button" onClick={() => void deleteProduct(product)} disabled={publishingId === product.id}>删除</button></div>
+            </details>;
           })}
-          {!loading && products.length === 0 ? <p className="muted">暂无商品。</p> : null}
-        </div>
+              </div>
+            </> : null}
+          </section>;
+        })}
+        {!loading && products.length === 0 ? <p className="muted">暂无商品。</p> : null}
         {error ? <p className="error-box">{error}</p> : null}
         {saveError ? <p className="error-box">{saveError}</p> : null}
-        {creating || editingId ? <section className="form-card" style={{ marginTop: 18 }}>
-          <div className="product-editor-heading"><h2>{creating ? "新建商品" : "商品详情"}</h2><div className="product-editor-actions"><button className="small-button" type="button" onClick={() => void saveProduct(editingId ?? undefined)} disabled={saving}>{saving ? "正在保存..." : creating ? "创建商品并上传图片" : "保存修改"}</button><button className="ghost-button" type="button" onClick={() => { setEditingId(null); setCreating(false); }} disabled={saving}>取消</button></div></div>
+        {editorOpen ? <dialog ref={editorDialogRef} className="admin-product-modal-dialog" aria-labelledby="admin-product-editor-title" onCancel={(event) => { event.preventDefault(); closeEditor(); }} onClick={(event) => { if (event.target === event.currentTarget) closeEditor(); }}>
+          <section className="form-card admin-product-modal">
+          <div className="product-editor-heading"><h2 id="admin-product-editor-title">{creating ? "新增商品" : "编辑商品"}</h2><div className="product-editor-actions"><button className="small-button" type="button" onClick={() => void saveProduct(editingId ?? undefined)} disabled={saving || uploading}>{saving ? "正在保存..." : creating ? "创建商品" : "保存修改"}</button><button className="ghost-button" type="button" onClick={closeEditor} disabled={saving || uploading}>取消</button></div></div>
+          {saveError ? <p className="error-box" role="alert">{saveError}</p> : null}
           {editingId ? <div className="product-image-editor">
             <div className="product-image-heading"><div><h3>商品图片</h3><p>主图用于商品列表，详情图显示在商品详情页。</p></div></div>
             <div className="product-image-channels">
@@ -374,13 +402,16 @@ export default function AdminProductsPage() {
             </div>
             {draftColors.length > 0 ? <div className="color-primary-images"><strong>颜色主图</strong><p>可按顺序自动匹配，或为单个颜色上传不同图片。</p>{mainImages.length > 0 ? <button type="button" className="small-button" onClick={matchColorImagesByOrder}>按顺序匹配颜色主图</button> : null}<div className="color-primary-images-grid">{draftColors.map((color) => <div className="color-primary-image" key={color}><span>{color}</span>{draft.colorImages[color] ? <div className="product-primary-image"><img src={draft.colorImages[color]} alt={`${draft.name} ${color} 主图`} /><button type="button" className="product-image-remove" onClick={() => setDraft((current) => { const colorImages = { ...current.colorImages }; delete colorImages[color]; return { ...current, colorImages }; })} aria-label={`删除${color}主图`} title={`删除${color}主图`}>×</button></div> : null}<label className={`product-image-upload-button${uploading ? " is-disabled" : ""}`}>{uploading ? "正在上传..." : draft.colorImages[color] ? "更换主图" : "上传主图"}<input className="product-image-file-input" type="file" accept="image/*" disabled={uploading} onChange={(event) => handleFileChange(event, "primary", color)} /></label></div>)}</div></div> : null}
           </div> : <div className="product-image-pending"><strong>商品图片</strong><span>可先从图库选择图片，创建商品后会自动上传。</span><div className="product-image-channels"><label className="product-image-upload-button">{pendingPrimaryImages.length ? `已选 ${pendingPrimaryImages.length} 张主图` : "选择主图"}<input className="product-image-file-input" type="file" accept="image/*" multiple onChange={(event) => handlePendingFileChange(event, "primary")} /></label><label className="product-image-upload-button">{pendingDetailImages.length ? `已选 ${pendingDetailImages.length} 张详情图` : "选择详情图"}<input className="product-image-file-input" type="file" accept="image/*" multiple onChange={(event) => handlePendingFileChange(event, "detail")} /></label></div></div>}
-          {creating ? <><div className="field"><label>商品名称</label><input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></div><div className="field-row two-col"><div className="field"><label>商品分类</label><select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })}><option value="">请选择</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select></div><div className="field"><label>商品价格（MXN）</label><input type="number" min="0.01" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} /></div></div><div className="field"><label>可售库存</label><input type="number" min="0" step="1" value={draft.inventoryQuantity} onChange={(event) => setDraft({ ...draft, inventoryQuantity: event.target.value })} /></div></> : null}
+          <div className="field"><label>商品名称</label><input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></div>
+          <div className="field-row two-col"><div className="field"><label>商品分类</label><select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })}><option value="">请选择</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select></div><div className="field"><label>商品价格（MXN）</label><input type="number" min="0.01" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} /></div></div>
+          <div className="field"><label>可售库存</label><input type="number" min="0" step="1" value={draft.inventoryQuantity} onChange={(event) => setDraft({ ...draft, inventoryQuantity: event.target.value })} /></div>
           <div className="field"><label>简短描述</label><input value={draft.shortDescription} onChange={(event) => setDraft({ ...draft, shortDescription: event.target.value })} /></div>
           <div className="field"><label>详细描述</label><textarea rows={5} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></div>
           <div className="field-row two-col"><div className="field"><label>材质</label><input value={draft.materials} onChange={(event) => setDraft({ ...draft, materials: event.target.value })} placeholder="用逗号分隔" /></div><div className="field"><label>颜色</label><input value={draft.colors} onChange={(event) => setDraft({ ...draft, colors: event.target.value })} placeholder="用逗号分隔" /></div></div>
           {draftColors.length > 0 ? <div className="field"><label>颜色单独价格（MXN）</label><div className="color-primary-images-grid">{draftColors.map((color) => <label className="color-primary-image" key={`${color}-price`}><span>{color}</span><input type="number" min="0.01" step="0.01" value={draft.colorPrices[color] ?? ""} placeholder={`默认 ${draft.price || "价格"}`} onChange={(event) => setDraft((current) => ({ ...current, colorPrices: { ...current.colorPrices, [color]: event.target.value } }))} /></label>)}</div></div> : null}
           <div className="field-row two-col"><div className="field"><label>尺寸</label><input value={draft.dimensions} onChange={(event) => setDraft({ ...draft, dimensions: event.target.value })} /></div><div className="field"><label>每件商品运费（MXN）</label><input type="number" min="0" step="0.01" value={draft.shippingFee} onChange={(event) => setDraft({ ...draft, shippingFee: event.target.value })} /></div></div>
-        </section> : null}
+          </section>
+        </dialog> : null}
       </div>
     </div>
   );

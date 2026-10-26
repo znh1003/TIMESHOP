@@ -32,7 +32,6 @@ export function ProductCard({ product }: { product: Product }) {
           <button type="button" className="quick-add-button" onClick={addProduct} disabled={isOutOfStock}>
             {isOutOfStock ? "Agotado" : "Añadir al carrito"}
           </button>
-          <Link href={`/products/${product.slug}`} className="quick-view-button">Vista rápida</Link>
         </div>
       </div>
       <div className="product-body">
